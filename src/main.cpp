@@ -155,16 +155,20 @@ void init(ParametricSurface const& surface, double num_revolutions, int num_path
 
 int main()
 {
-    auto num_revolutions = 1.;
+#ifdef DEBUG_FPE_TRAP
+    enable_floating_point_exceptions();
+#endif
+
+    auto num_revolutions = 10.;
     auto num_paths = 1;
-    auto num_particles = 201;
+    auto num_particles = 100;
 
     auto dt = 0.05;
     auto ksp = 1'000'000.;
     auto kdp = 200.;
     auto eps = 0.001;
 
-    auto surface = H1();
+    auto surface = Spring();
     auto winding_order = std::vector<int> {};
     auto init_sv = std::vector<std::vector<Vec2>> {};
 
@@ -192,7 +196,7 @@ int main()
         std::cout << round(progress) << "%\n\n";
     }
 
-    // for (auto&& [i, p, r] : std::views::zip(std::views::iota(0), parr[1], rarr[1])) {
-    //     std::cout << i << ": (" << r << ") " << p.x() << ", " << p.y() << '\n';
-    // }
+    for (auto&& [i, p, r] : std::views::zip(std::views::iota(0), parr[0], rarr[0])) {
+        std::cout << i << ": (" << r << ") " << p.x() << ", " << p.y() << '\n';
+    }
 }

@@ -77,7 +77,7 @@ void OffSurface::step()
     MatrixSd Mh2K(3 * N, 3 * N);
     MatrixSd mat;
 
-    Vector farr(3 * N);
+    Vector forces(3 * N);
     Vector varr(2 * N);
     Vector barr;
 
@@ -121,9 +121,9 @@ void OffSurface::step()
             Mh2K_ele[1] = Triplet(1, 1, 1);
             Mh2K_ele[2] = Triplet(2, 2, 1);
 
-            farr(0) = 0;
-            farr(1) = 0;
-            farr(2) = 0;
+            forces(0) = 0;
+            forces(1) = 0;
+            forces(2) = 0;
 
             continue;
         }
@@ -133,9 +133,9 @@ void OffSurface::step()
             Mh2K_ele[9 * N - 14] = Triplet(3 * i + 1, 3 * i + 1, 1);
             Mh2K_ele[9 * N - 13] = Triplet(3 * i + 2, 3 * i + 2, 1);
 
-            farr(3 * i) = 0;
-            farr(3 * i + 1) = 0;
-            farr(3 * i + 2) = 0;
+            forces(3 * i + 0) = 0;
+            forces(3 * i + 1) = 0;
+            forces(3 * i + 2) = 0;
             continue;
         }
 
@@ -165,9 +165,9 @@ void OffSurface::step()
                    +  1. / R * (surface().f(m_p[pidx + R]) - surface().f(p)));
         // clang-format on
 
-        farr(3 * i + 0) = force.x();
-        farr(3 * i + 1) = force.y();
-        farr(3 * i + 2) = force.z();
+        forces(3 * i + 0) = force.x();
+        forces(3 * i + 1) = force.y();
+        forces(3 * i + 2) = force.z();
     }
 
     JT.setFromTriplets(JT_ele.begin(), JT_ele.end());
@@ -175,7 +175,7 @@ void OffSurface::step()
     Mh2K.setFromTriplets(Mh2K_ele.begin(), Mh2K_ele.end());
 
     mat = JT * Mh2K * JT.transpose();
-    barr = JT * (JT.transpose() * varr) + m_dt * (JT * (farr - dJ * varr));
+    barr = JT * (JT.transpose() * varr) + m_dt * (JT * (forces - dJ * varr));
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
     solver.factorize(mat);
@@ -235,7 +235,7 @@ void OffSurface::lifting()
         int cr = cm + m_r[cm];
         Vec3 pr = surface().f(m_p[cr]);
 
-        if ((pl + pr - 2. * pm).dot(surface().normal(m_p[cm])) > 0.) { // Should lift
+        if ((pl + pr - 2. * pm).dot(surface().normal(m_p[cm])) > 0.) { // lift
             m_touching[cm] = false;
             m_l[cm] = 1;
             m_r[cm] = 1;
@@ -271,7 +271,7 @@ void OffSurface::landing()
             pm = surface().f(m_p[cm]);
             mu = (double)(cm - cl) / (cr - cl);
 
-            if ((pm - (mu * pr  + (1. - mu) * pl)).dot(surface().normal(m_p[cm])) > 0.) {
+            if ((pm - (mu * pr + (1. - mu) * pl)).dot(surface().normal(m_p[cm])) > 0.) {
                 m_l[cm] = cm - cl;
                 m_r[cl] = cm - cl;
 
