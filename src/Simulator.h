@@ -10,7 +10,6 @@ class Simulator {
     ParametricSurface const& m_surface;
 
 protected:
-
     double m_ksp;
     double m_kdp;
     double m_kpf;
@@ -32,6 +31,13 @@ public:
 
     decltype(auto) size() { return m_size; }
     decltype(auto) surface() { return m_surface; }
+
+    auto& ksp() { return m_ksp; }
+    auto& kdp() { return m_kdp; }
+    auto& kpf() { return m_kpf; }
+    auto& kbs() { return m_kbs; }
+    auto& dt() { return m_dt; }
+    auto& eps() { return m_v_eps; }
 };
 
 class OffSurface : public Simulator {
@@ -50,6 +56,12 @@ public:
     void mapping();
     void lifting();
     void landing();
+
+    auto& p() { return m_p; }
+    auto& v() { return m_v; }
+    auto& touching() { return m_touching; }
+    auto& r() { return m_r; }
+    auto& l() { return m_l; }
 };
 
 #endif
