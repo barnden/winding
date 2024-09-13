@@ -38,10 +38,80 @@ public:
     std::vector<Vec2> m_grid2D;
     std::vector<Vec3> m_grid3D;
 
-    double m_uMax, m_uMin, m_vMax, m_vMin;
+    double m_uMax;
+    double m_uMin;
+    double m_vMax;
+    double m_vMin;
+
     double m_epsilon;
 
     std::unique_ptr<float[]> get_display_data(int& len_out, int nc_res = 500, int nh_res = 500);
+};
+
+class H1 : public ParametricSurface {
+public:
+    H1()
+    {
+        m_uMin = 0.;
+        m_uMax = 2. * PI;
+
+        m_vMin = 0.;
+        m_vMax = 1.;
+    }
+
+    virtual Vec3 f(Vec2 const& p) const
+    {
+        return {
+            (p.y() * p.y() - p.y() + 0.4) * cos(p.x()),
+            (p.y() * p.y() - p.y() + 0.4) * sin(p.x()),
+            p.y()
+        };
+    }
+
+    virtual Vec3 f_u(Vec2 const& p) const
+    {
+        return {
+            -(p.y() * p.y() - p.y() + 0.4) * sin(p.x()),
+            (p.y() * p.y() - p.y() + 0.4) * cos(p.x()),
+            0.
+        };
+    }
+
+    virtual Vec3 f_v(Vec2 const& p) const
+    {
+        return {
+            (2. * p.y() - 1.) * cos(p.x()),
+            (2. * p.y() - 1.) * sin(p.x()),
+            1.
+        };
+    }
+
+    virtual Vec3 f_uu(Vec2 const& p) const
+    {
+        return {
+            -(p.y() * p.y() - p.y() + 0.4) * cos(p.x()),
+            -(p.y() * p.y() - p.y() + 0.4) * sin(p.x()),
+            0.
+        };
+    }
+
+    virtual Vec3 f_uv(Vec2 const& p) const
+    {
+        return {
+            -(2. * p.y() - 1.) * sin(p.x()),
+            (2. * p.y() - 1.) * cos(p.x()),
+            0.
+        };
+    }
+
+    virtual Vec3 f_vv(Vec2 const& p) const
+    {
+        return {
+            2. * cos(p.x()),
+            2. * sin(p.x()),
+            0.
+        };
+    }
 };
 
 #endif
