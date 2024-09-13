@@ -108,31 +108,20 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
     Vec2 xk = guess;
     Vec2 dx = Vec2(1., 1.);
 
-    double h11;
-    double h12;
-    double h22;
-
-    Vec3 f_ = Vec3::Zero();
-    Vec3 f_u_ = Vec3::Zero();
-    Vec3 f_v_ = Vec3::Zero();
-    Vec3 f_uu_ = Vec3::Zero();
-    Vec3 f_uv_ = Vec3::Zero();
-    Vec3 f_vv_ = Vec3::Zero();
-
     for (int i = 0; (i < 1000) && (dx.norm() > 1e-5); i++) {
-        f_ = f(xk);
-        f_u_ = f_u(xk);
-        f_v_ = f_v(xk);
-        f_uu_ = f_uu(xk);
-        f_uv_ = f_uv(xk);
-        f_vv_ = f_vv(xk);
+        Vec3 fp = f(xk) - p;
+        Vec3 fu = f_u(xk);
+        Vec3 fv = f_v(xk);
+        Vec3 fuu = f_uu(xk);
+        Vec3 fuv = f_uv(xk);
+        Vec3 fvv = f_vv(xk);
 
-        h11 = f_uu_.dot(f_ - p) + f_u_.dot(f_u_);
-        h12 = f_uv_.dot(f_ - p) + f_u_.dot(f_v_);
-        h22 = f_vv_.dot(f_ - p) + f_v_.dot(f_v_);
+        double h11 = fuu.dot(fp) + fu.dot(fu);
+        double h12 = fuv.dot(fp) + fu.dot(fv);
+        double h22 = fvv.dot(fp) + fv.dot(fv);
 
-        dx.x() = h22 * f_u_.dot(f_ - p) - h12 * f_v_.dot(f_ - p);
-        dx.y() = -h12 * f_u_.dot(f_ - p) - h11 * f_v_.dot(f_ - p);
+        dx.x() = h22 * fu.dot(fp) - h12 * fv.dot(fp);
+        dx.y() = -h12 * fu.dot(fp) - h11 * fv.dot(fp);
 
         dx /= (h11 * h22 - h12 * h12);
 
