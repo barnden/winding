@@ -106,7 +106,7 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p) const
 Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
 {
     Vec2 xk = guess;
-    Vec2 dx = Vec2(1., 1.);
+    Vec2 dx = Vec2(1e20, 1e20);
 
     for (int i = 0; (i < 1000) && (dx.norm() > 1e-5); i++) {
         Vec3 fp = f(xk) - p;
@@ -121,7 +121,7 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
         double h22 = fvv.dot(fp) + fv.dot(fv);
 
         dx.x() = h22 * fu.dot(fp) - h12 * fv.dot(fp);
-        dx.y() = -h12 * fu.dot(fp) - h11 * fv.dot(fp);
+        dx.y() = -h12 * fu.dot(fp) + h11 * fv.dot(fp);
 
         dx /= (h11 * h22 - h12 * h12);
 
