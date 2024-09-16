@@ -1,13 +1,23 @@
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
+import re
+from mayavi import mlab
 
 class Surface:
     x_limits = [-1, 1]
     y_limits = [-1, 1]
     z_limits = [-1, 1]
+    eps = 1e-5
 
     winding_path_file = "points.txt"
+
+    def normal(self, u, v):
+        du = (np.array(self.f(u + self.eps, v)) - np.array(self.f(u - self.eps, v))) / (2. * self.eps)
+        dv = (np.array(self.f(u, v + self.eps)) - np.array(self.f(u, v - self.eps))) / (2. * self.eps)
+
+        normal = np.cross(du, dv, axis=0)
+        normal /= np.linalg.norm(normal, axis=0)
+
+        return normal
 
     def generate_mesh(self, N=32):
         parametric_space = np.meshgrid(
@@ -19,7 +29,15 @@ class Surface:
 
     def winding_path(self):
         with open(self.winding_path_file) as f:
-            points = [*map(lambda line: self.f(*map(lambda x: np.array([[float(x)]]), line.replace(",", "").split()[-2:])), f.readlines())]
+            data = map(lambda x: re.sub('[,()]', '', x).split()[1:], f.readlines())
+            data = [[int(x[0]), np.array([[float(x[1])]]), np.array([[float(x[2])]])] for x in data]
+
+        points = []
+        i = 0
+        while i < len(data):
+            r, *uv = data[i]
+            points.append(self.f(*uv) + 0.001 * self.normal(*uv))
+            i += r
 
         return points
 
@@ -134,16 +152,19 @@ class TrefoilKnot(Surface):
         e2 = np.cross(t, e1, axis=0)
 
         return p0 + 0.4 * np.cos(u) * e1 + 0.4 * np.sin(u) * e2
+    
+class Vase2(Vase):
+    winding_path_file = "vase-2.txt"
 
-for surface in [H1(), Vase(), Torus(), Spring(), TrefoilKnot()]: #[H1(), Vase(), Torus(), Spring()]:
-    X = surface.generate_mesh(32)
-    points = surface.winding_path()
+if __name__ == "__main__":
+    for surface in [Vase2()]:
+        X = surface.generate_mesh(128)
+        path = surface.winding_path()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-    ax.set_xlim3d(*surface.x_limits)
-    ax.set_ylim3d(*surface.y_limits)
-    ax.set_zlim3d(*surface.z_limits)
-    ax.plot_surface(*X, linewidth=0.1, zorder=1)
-    ax.plot([e[0] for e in points], [e[1] for e in points], [e[2] for e in points], markersize=10, color=[1, 0, 0], zorder=4)
-    plt.show()
+        mlab.figure(size=(1080, 720), fgcolor=(1., 1., 1.), bgcolor=(.1, .1, .1))
+        mlab.mesh(*X, colormap='ocean')
+        mlab.plot3d([e[0] for e in path], [e[1] for e in path], [e[2] for e in path], tube_radius=0.01)
+
+        view = (90., 60, 5, (0, 0, 0))
+        mlab.view(*view, reset_roll=True)
+        mlab.show()
