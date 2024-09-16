@@ -37,14 +37,14 @@ Vec3 ParametricSurface::nf_uu(Vec2 const& p) const
 {
     Vec2 const delta(2. * m_epsilon, 0.);
 
-    return (f(p + delta) - f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
+    return (f(p + delta) + f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
 }
 
 Vec3 ParametricSurface::nf_vv(Vec2 const& p) const
 {
     Vec2 const delta(0., 2. * m_epsilon);
 
-    return (f(p + delta) - f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
+    return (f(p + delta) + f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
 }
 
 Vec3 ParametricSurface::nf_uv(Vec2 const& p) const
@@ -106,9 +106,8 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p) const
 Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
 {
     Vec2 xk = guess;
-    Vec2 dx = Vec2(1e20, 1e20);
 
-    for (int i = 0; (i < 1000) && (dx.norm() > 1e-5); i++) {
+    for (int i = 0; i < 1000; i++) {
         Vec3 fp = f(xk) - p;
         Vec3 fu = f_u(xk);
         Vec3 fv = f_v(xk);
@@ -120,11 +119,12 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
         double h12 = fuv.dot(fp) + fu.dot(fv);
         double h22 = fvv.dot(fp) + fv.dot(fv);
 
-        dx.x() = h22 * fu.dot(fp) - h12 * fv.dot(fp);
-        dx.y() = -h12 * fu.dot(fp) + h11 * fv.dot(fp);
-
+        Vec2 dx(h22 * fu.dot(fp) - h12 * fv.dot(fp), -h12 * fu.dot(fp) + h11 * fv.dot(fp));
         dx /= (h11 * h22 - h12 * h12);
         xk -= 0.5 * dx;
+
+        if (dx.norm() <= 1e-5)
+            break;
     }
 
     return xk;
