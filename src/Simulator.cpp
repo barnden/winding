@@ -42,8 +42,8 @@ Simulator::~Simulator() {};
 
 void Simulator::simulate(int k)
 {
-    int i = 0;
-    for (; (i < k && i < 10) || (i < k && !stop()); i++) {
+    int i;
+    for (i = 0; (i < k && i < 10) || (i < k && !stop()); i++) {
         m_t += m_dt;
         step();
     }
@@ -89,8 +89,7 @@ void OffSurface::step()
         Vec2 const& p = m_p[pidx];
         Vec2 const& v = m_v[pidx];
 
-        varr(2 * i) = v.x();
-        varr(2 * i + 1) = v.y();
+        varr.segment<2>(2 * i) = v;
 
         Vec3 fu = surface().f_u(p);
         Vec3 fv = surface().f_v(p);
@@ -121,10 +120,7 @@ void OffSurface::step()
             Mh2K_ele[1] = Triplet(1, 1, 1);
             Mh2K_ele[2] = Triplet(2, 2, 1);
 
-            forces(0) = 0;
-            forces(1) = 0;
-            forces(2) = 0;
-
+            forces.segment<3>(0) = Vec3::Zero();
             continue;
         }
 
@@ -133,9 +129,7 @@ void OffSurface::step()
             Mh2K_ele[9 * N - 14] = Triplet(3 * i + 1, 3 * i + 1, 1);
             Mh2K_ele[9 * N - 13] = Triplet(3 * i + 2, 3 * i + 2, 1);
 
-            forces(3 * i + 0) = 0;
-            forces(3 * i + 1) = 0;
-            forces(3 * i + 2) = 0;
+            forces.segment<3>(3 * i) = Vec3::Zero();
             continue;
         }
 
@@ -165,9 +159,7 @@ void OffSurface::step()
                    +  1. / R * (surface().f(m_p[pidx + R]) - surface().f(p)));
         // clang-format on
 
-        forces(3 * i + 0) = force.x();
-        forces(3 * i + 1) = force.y();
-        forces(3 * i + 2) = force.z();
+        forces.segment<3>(3 * i) = force;
     }
 
     JT.setFromTriplets(JT_ele.begin(), JT_ele.end());
@@ -179,16 +171,19 @@ void OffSurface::step()
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
     solver.factorize(mat);
+
+    if (solver.info() != Eigen::Success) {
+        std::cout << "Failed to factorize matrix " << solver.info() << " " << mat.cols() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     varr = solver.solve(barr);
 
     for (int i = 1; i < N - 1; i++) {
         int const& idx = touching[i];
 
-        m_v[idx].x() = varr(2 * i);
-        m_v[idx].y() = varr(2 * i + 1);
-
-        m_p[idx].x() += m_v[idx].x() * m_dt;
-        m_p[idx].y() += m_v[idx].y() * m_dt;
+        m_v[idx] = varr.segment<2>(2 * i);
+        m_p[idx] += m_v[idx] * m_dt;
     }
 
     lifting();
@@ -265,11 +260,10 @@ void OffSurface::landing()
     while (cl != size() - 1) {
         int cm = cl + 1;
         Vec3 pm;
-        double mu;
 
         for (; cm < cr; cm++) {
+            double mu = (double)(cm - cl) / (cr - cl);
             pm = surface().f(m_p[cm]);
-            mu = (double)(cm - cl) / (cr - cl);
 
             if ((pm - (mu * pr + (1. - mu) * pl)).dot(surface().normal(m_p[cm])) > 0.) {
                 m_l[cm] = cm - cl;
