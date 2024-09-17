@@ -1,6 +1,8 @@
 import numpy as np
 import re
 from mayavi import mlab
+from collections import defaultdict
+from winding import simulate
 
 class Surface:
     x_limits = [-1, 1]
@@ -9,6 +11,9 @@ class Surface:
     eps = 1e-5
 
     winding_path_file = "points.txt"
+    def __init__(self, file=None):
+        if file is not None:
+            self.winding_path_file = file
 
     def normal(self, u, v):
         du = (np.array(self.f(u + self.eps, v)) - np.array(self.f(u - self.eps, v))) / (2. * self.eps)
@@ -29,17 +34,22 @@ class Surface:
 
     def winding_path(self):
         with open(self.winding_path_file) as f:
-            data = map(lambda x: re.sub('[,()]', '', x).split()[1:], f.readlines())
-            data = [[int(x[0]), np.array([[float(x[1])]]), np.array([[float(x[2])]])] for x in data]
+            data = [*map(lambda x: re.sub('[,()]', '', x).split(), f.readlines())]
+            if len(data[0]) == 4:
+                data = map(lambda x: x[1:], data)
+                data = [[0, int(x[0]), np.array([[float(x[1])]]), np.array([[float(x[2])]])] for x in data]
+            else:
+                data = map(lambda x: [x[0], *x[2:]], data)
+                data = [[int(x[0]), int(x[1]), np.array([[float(x[2])]]), np.array([[float(x[3])]])] for x in data]
 
-        points = []
         i = 0
+        paths = defaultdict(list)
         while i < len(data):
-            r, *uv = data[i]
-            points.append(self.f(*uv) + 0.001 * self.normal(*uv))
+            path_id, r, *uv = data[i]
+            paths[path_id].append(self.f(*uv) + 0.001 * self.normal(*uv))
             i += r
 
-        return points
+        return paths
 
 class H1(Surface):
     u_min = 0
@@ -152,18 +162,26 @@ class TrefoilKnot(Surface):
         e2 = np.cross(t, e1, axis=0)
 
         return p0 + 0.4 * np.cos(u) * e1 + 0.4 * np.sin(u) * e2
-    
-class Vase2(Vase):
-    winding_path_file = "vase-2.txt"
+
+COLORS = [
+    (1, 1, 1),
+    (1, 0, 0),
+    (0, 1, 0),
+    (0, 0, 1),
+]
 
 if __name__ == "__main__":
-    for surface in [Vase2()]:
+    for surface in [Vase("vase-3.txt"), Vase("vase-4.txt"), Vase("vase-5.txt")]:#, Vase("Vase-6.txt")]:
         X = surface.generate_mesh(128)
-        path = surface.winding_path()
+        paths = surface.winding_path()
+
+        # paths = np.array(simulate())
 
         mlab.figure(size=(1080, 720), fgcolor=(1., 1., 1.), bgcolor=(.1, .1, .1))
-        mlab.mesh(*X, colormap='ocean')
-        mlab.plot3d([e[0] for e in path], [e[1] for e in path], [e[2] for e in path], tube_radius=0.01)
+        mlab.mesh(*X, color=(0.6, 0.65, 0.8))
+
+        for [path_id, path] in paths.items():
+            mlab.plot3d([e[0] for e in path], [e[1] for e in path], [e[2] for e in path], tube_radius=0.003, color=COLORS[path_id % len(COLORS)])
 
         view = (90., 60, 5, (0, 0, 0))
         mlab.view(*view, reset_roll=True)
