@@ -7,9 +7,12 @@
 
 #    define SF_OFF 0.001
 
+#    include "utils.h"
+
 class Composer {
     std::vector<std::vector<Vec2>> m_initial;
     std::vector<int> m_winding_order;
+    ParametricSurface const& m_surface;
 
     struct OrderNode {
         int path;
@@ -21,6 +24,7 @@ class Composer {
 
 public:
     Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
+        : m_surface(surface)
     {
         auto angle = (surface.m_vMax - surface.m_vMin) / (surface.m_uMax - surface.m_uMin) / num_revolutions;
         auto du = (surface.m_uMax - surface.m_uMin) / num_paths;
@@ -145,6 +149,108 @@ public:
         }
 
         delete[] nodes;
+    }
+
+    decltype(auto) simulate(
+        double num_revolutions = 0.1,
+        int num_paths = 1,
+        int num_particles = 200,
+        double dt = 0.05,
+        double ksp = 1'000'000.,
+        double kdp = 200.,
+        double eps = 0.001)
+    {
+        generate_winding_order();
+
+        auto paths = std::vector<std::vector<Vec2>>(m_initial.size());
+        auto order = std::vector<std::vector<int>>(m_initial.size());
+
+        for (auto&& [j, i] : enumerate(m_winding_order)) {
+            auto simulator = OffSurface(m_surface, m_initial[i]);
+
+            simulator.ksp() = ksp;
+            simulator.kdp() = kdp;
+            simulator.dt() = dt;
+            simulator.eps() = eps;
+
+            simulator.simulate(1000);
+            simulator.mapping();
+
+            // auto const& result = simulator.p();
+            // auto pT = std::vector<Eigen::VectorXd>(result.size());
+            // for (auto&& [i, p] : enumerate(result))
+            //     pT[i] = Eigen::VectorXd { { (double)simulator.r()[i], p.x(), p.y() } };
+            // parr[i] = pT;
+
+            paths[i] = simulator.p();
+            order[i] = simulator.r();
+
+            // auto progress = 100. * (j + 1.) / m_winding_order.size();
+            // std::cout << round(progress) << "%\n\n";
+        }
+
+        for (auto i = 0; i < m_initial.size() / 2; i++) {
+            for (auto j = 0; j < m_initial.size() / 2; j++) { }
+        }
+    }
+
+    decltype(auto) intersect(
+        Vec2 up1,
+        Vec2 up2,
+        Vec2 down1,
+        Vec2 down2,
+        Vec2& intersection,
+        double& t_up,
+        double& t_down)
+    {
+        double half_u = (m_surface.m_uMax - m_surface.m_uMin) / 2.;
+
+        while (up1.x() - down1.x() > half_u) {
+            up1.x() -= 2. * half_u;
+            up2.x() -= 2. * half_u;
+        }
+
+        while (down1.x() - up1.x() > half_u) {
+            up1.x() += 2. * half_u;
+            up2.x() += 2. * half_u;
+        }
+
+        Vec2 up_min = up1.cwiseMin(up2);
+        Vec2 down_max = down1.cwiseMax(down2);
+
+        if (up_min.x() > down_max.x())
+            return false;
+
+        Vec2 up_max = up1.cwiseMax(up2);
+        Vec2 down_min = down1.cwiseMin(down2);
+
+        if (up_max.x() < down_min.x())
+            return false;
+
+        if (up_min.y() > down_max.y())
+            return false;
+
+        if (up_max.y() < down_min.y())
+            return false;
+
+        Vec2 delta_down = down2 - down1;
+        Vec2 delta_up = up1 - up2;
+        double dT = delta_down.x() * delta_up.y() - delta_up.x() * delta_down.y();
+
+        if (std::abs(dT) < 1e-20)
+            return false;
+
+        Vec2 delta_p = up1 - down1;
+        t_down = (delta_up.y() * delta_p.x() - delta_up.x() * delta_p.y()) / dT;
+
+        if (t_down < 0. || t_down >= 1.)
+            return false;
+
+        t_up = (delta_down.x() * delta_p.y() - delta_down.y() * delta_p.x()) / dT;
+        if (t_up < 0. || t_up >= 1.)
+            return false;
+
+        intersection = (1. - t_up) * up1 + t_up * up2;
     }
 
     decltype(auto) initial_path() const { return m_initial; }
