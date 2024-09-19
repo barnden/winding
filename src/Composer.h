@@ -22,6 +22,24 @@ class Composer {
         OrderNode* prev;
     };
 
+    struct IntersectionNode {
+        Vec2 parametric = Vec2::Zero();
+        Vec3 point = Vec3::Zero();
+
+        double angle_score = 0.;
+        double dist_score = 0.;
+        double t_up = 0.;
+        double t_down = 0.;
+
+        IntersectionNode* prev_up = nullptr;
+        IntersectionNode* next_up = nullptr;
+
+        IntersectionNode* prev_down = nullptr;
+        IntersectionNode* next_down = nullptr;
+
+        bool is_end = false;
+    };
+
 public:
     Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
         : m_surface(surface)
@@ -251,6 +269,44 @@ public:
             return false;
 
         intersection = (1. - t_up) * up1 + t_up * up2;
+    }
+
+    decltype(auto) intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& down)
+    {
+        std::vector<IntersectionNode*> result;
+
+        int i = 0;
+        int j = down.size() - 1;
+        double t_up;
+        double t_down;
+        while (i < up.size() - 1 && j > 0) {
+            Vec2 intersection;
+            if (intersect(up[i], up[i + 1], down[j - 1], down[j], intersection, t_up, t_down)) {
+                auto *p = new IntersectionNode();
+
+                p->t_up = t_up + i;
+                p->t_down = t_down + j - 1.;
+                p->parametric = intersection;
+                p->point = m_surface.f(intersection);
+
+                result.push_back(p);
+            }
+
+            if (up[i + 1].y() < down[j - 1].y()) {
+                i++;
+                continue;
+            }
+
+            if (up[i + 1].y() > down[j - 1].y()) {
+                j--;
+                continue;
+            }
+
+            i++;
+            j--;
+        }
+
+        return result;
     }
 
     decltype(auto) initial_path() const { return m_initial; }
