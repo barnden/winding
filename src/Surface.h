@@ -33,8 +33,6 @@ public:
     Vec2 closest_point(Vec3 const& p) const;
     Vec2 closest_point(Vec3 const& p, Vec2 const& guess) const;
 
-    std::vector<double> get_jn_ref(Vec2 const& p, double l) const;
-
     std::vector<Vec2> m_grid2D;
     std::vector<Vec3> m_grid3D;
 
@@ -299,19 +297,19 @@ class TrefoilKnot : public ParametricSurface {
 public:
     TrefoilKnot()
     {
-        m_uMin = 0;
-        m_uMax = 2 * PI;
-        m_vMin = 0.0;
-        m_vMax = 2 * PI - 0.001;
+        m_uMin = 0.;
+        m_uMax = 2. * PI;
+        m_vMin = 0.;
+        m_vMax = 2. * PI - 0.001;
     }
 
-    virtual Vec3 f(Vec2 const& p) const {
+    virtual Vec3 f(Vec2 const& p) const
+    {
         Vec3 e1(0., 0., 1.);
         Vec3 p0(
             sin(p.y()) + 2. * sin(2. * p.y()),
             cos(p.y()) - 2. * cos(2. * p.y()),
-            -1. * sin(3. * p.y())
-        );
+            -1. * sin(3. * p.y()));
         Vec3 t(
             cos(p.y()) + 4. * cos(2. * p.y()),
             -sin(p.y()) + 4. * sin(2. * p.y()),

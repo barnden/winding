@@ -49,5 +49,4 @@ void enable_floating_point_exceptions()
     sigaction(SIGILL, &act, NULL);
 }
 #    endif
-
 #endif

@@ -38,6 +38,7 @@ Vec3 ParametricSurface::nf_uu(Vec2 const& p) const
     Vec2 const delta(2. * m_epsilon, 0.);
 
     return (f(p + delta) + f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
+    // return ((f(p + Vec2(2.0 * m_epsilon, 0)) - f(p)) - (f(p) - f(p + Vec2(-2.0 * m_epsilon, 0)))) / 4.0 / m_epsilon / m_epsilon;
 }
 
 Vec3 ParametricSurface::nf_vv(Vec2 const& p) const
@@ -45,6 +46,7 @@ Vec3 ParametricSurface::nf_vv(Vec2 const& p) const
     Vec2 const delta(0., 2. * m_epsilon);
 
     return (f(p + delta) + f(p - delta) - 2. * f(p)) / (4. * m_epsilon * m_epsilon);
+    // return ((f(p + Vec2(0, 2.0 * m_epsilon)) - f(p)) - (f(p) - f(p + Vec2(0, -2.0 * m_epsilon)))) / 4.0 / m_epsilon / m_epsilon;
 }
 
 Vec3 ParametricSurface::nf_uv(Vec2 const& p) const
@@ -129,30 +131,3 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
 
     return xk;
 }
-
-// std::vector<double> ParametricSurface::get_jn_ref(Vec2 const& p, double l) const
-// {
-//     Vec3 fn0 = normal(p);
-//     Vec3 fnx = normal(closest_point(f(p) + Vec3(m_epsilon, 0., 0.), p));
-//     Vec3 fny = normal(closest_point(f(p) + Vec3(0., m_epsilon, 0.), p));
-//     Vec3 fnz = normal(closest_point(f(p) + Vec3(0., 0., m_epsilon), p));
-
-//     fnx = (fnx - fn0) / m_epsilon;
-//     fny = (fny - fn0) / m_epsilon;
-//     fnz = (fnz - fn0) / m_epsilon;
-
-//     return {
-//         fnx.x(), fny.x(), fnz.x(),
-//         fnx.y(), fny.y(), fnz.y(),
-//         fnx.z(), fny.z(), fnz.z()
-//     };
-// }
-
-// std::unique_ptr<float[]> ParametricSurface::get_display_data(int& len_out, int nc_res, int nh_res)
-// {
-//     len_out = nc_res * nh_res * 4 * 6;
-
-//     auto const result = std::make_unique<float[]>(len_out);
-
-//     // TBD
-// }
