@@ -127,6 +127,7 @@ public:
         Vec3 position;
         Vec3 normal;
         Vec3 direction;
+        Vec2 shadow;
 
         double l;
         int type;
@@ -276,16 +277,16 @@ public:
         double& t_up,
         double& t_down)
     {
-        double half_u = (m_surface.m_uMax - m_surface.m_uMin) / 2.;
+        double u = (m_surface.m_uMax - m_surface.m_uMin);
 
-        while (up1.x() - down1.x() > half_u) {
-            up1.x() -= 2. * half_u;
-            up2.x() -= 2. * half_u;
+        while (up1.x() - down1.x() > (u / 2.)) {
+            up1.x() -= u;
+            up2.x() -= u;
         }
 
-        while (down1.x() - up1.x() > half_u) {
-            up1.x() += 2. * half_u;
-            up2.x() += 2. * half_u;
+        while (down1.x() - up1.x() > (u / 2.)) {
+            up1.x() += u;
+            up2.x() += u;
         }
 
         Vec2 up_min = up1.cwiseMin(up2);
@@ -495,27 +496,6 @@ public:
             score_ends(ls.rear->prev_down);
         }
 
-        // for (auto&& [j, i] : enumerate(m_winding_order)) {
-        //     auto const& path = paths[i];
-        //     auto const& order = orders[i];
-
-        //     if (j % 2) { // down path
-        //         auto const& list = down_list[j / 2];
-        //         auto n = 0uz;
-        //         for (auto p = list.head->next_down; p != list.rear; p = p->next_down)
-        //             n++;
-        //         std::cout << path.size() << ", " << order.size() << ", " << n << "\n";
-        //     } else { // up path
-        //         auto const& list = up_list[(j - 1) / 2];
-
-        //         auto n = 0;
-        //         for (auto p = list.head->next_up; p != list.rear; p = p->next_up)
-        //             n++;
-
-        //         std::cout << path.size() << ", " << order.size() << ", " << n << "\n";
-        //     }
-        // }
-
         auto motion = std::vector<LocalFrame>(2 * m_num_paths * (m_num_particles + 2) - 2);
         auto ct = 0;
         auto l = 0.; // what is this?
@@ -538,6 +518,7 @@ public:
                 motion[ct].position = pcur + SF_OFF * ncur;
                 motion[ct].normal = ncur;
                 motion[ct].direction = (pnext - pcur).normalized();
+                motion[ct].shadow = path[cur];
                 motion[ct].l = l;
                 motion[ct].type = type;
                 motion[ct].distance = 0.;
@@ -556,6 +537,7 @@ public:
                     motion[ct].position = LERP(order[cur], j, pcur, pnext) + SF_OFF * ncur;
                     motion[ct].normal = LERP(order[cur], j, ncur, nnext).normalized();
                     motion[ct].direction = (pnext - pcur).normalized();
+                    motion[ct].shadow = path[cur + j];
                     motion[ct].l = l;
                     motion[ct].type = type;
                     motion[ct].distance = (motion[ct].position - m_surface.f(path[cur + j])).norm();
@@ -573,6 +555,7 @@ public:
             motion[ct].position = pcur + SF_OFF * ncur;
             motion[ct].normal = ncur;
             motion[ct].direction = motion[ct - 1].direction;
+            motion[ct].shadow = path[cur];
             motion[ct].l = l;
             motion[ct].type = type;
             motion[ct].distance = 0.;
@@ -581,13 +564,14 @@ public:
             ct++;
             l += m_l_turn;
 
-            if (j != m_winding_order.size() - 1) {
+            if (j != (int)(m_winding_order.size() - 1)) {
                 pnext = m_surface.f(m_initial[m_winding_order[j + 1]][0]);
                 nnext = m_surface.normal(m_initial[m_winding_order[j + 1]][0]);
 
                 motion[ct].normal = motion[ct - 1].direction;
                 motion[ct].position = pcur + SF_OFF * motion[ct].normal;
                 motion[ct].direction = (pnext - pcur).normalized();
+                motion[ct].shadow = motion[ct - 1].shadow;
                 motion[ct].l = l;
                 motion[ct].type = -1;
                 motion[ct].distance = 0.;
@@ -602,6 +586,7 @@ public:
                 motion[ct].normal = motion[ct - 1].normal;
                 motion[ct].position = pnext + SF_OFF * motion[ct].normal;
                 motion[ct].direction = motion[ct - 1].direction;
+                motion[ct].shadow = m_initial[m_winding_order[j + 1]][0];
                 motion[ct].l = l;
                 motion[ct].type = -1;
                 motion[ct].distance = 0.;
