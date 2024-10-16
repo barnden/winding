@@ -105,11 +105,11 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p) const
     return closest_point(p, m_grid2D[id]);
 }
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess) const
+Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations) const
 {
     Vec2 xk = guess;
 
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < max_iterations; i++) {
         Vec3 fp = f(xk) - p;
         Vec3 fu = f_u(xk);
         Vec3 fv = f_v(xk);
