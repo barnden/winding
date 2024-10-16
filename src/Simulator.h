@@ -18,7 +18,7 @@ protected:
     double m_t;
     double m_v_eps;
 
-    std::vector<Vec2> m_p_init;
+    std::vector<Vec2> m_position_initial;
 
 public:
     Simulator(ParametricSurface const& f, std::vector<Vec2> const& init_path);
@@ -29,7 +29,7 @@ public:
 
     void simulate(int k);
 
-    decltype(auto) size() { return m_size; }
+    decltype(auto) size() const { return m_size; }
     decltype(auto) surface() { return m_surface; }
 
     auto& ksp() { return m_ksp; }
@@ -41,8 +41,8 @@ public:
 };
 
 class OffSurface : public Simulator {
-    std::vector<Vec2> m_p;
-    std::vector<Vec2> m_v;
+    std::vector<Vec2> m_position;
+    std::vector<Vec2> m_velocity;
 
     std::vector<bool> m_touching;
     std::vector<int> m_l;
@@ -50,15 +50,15 @@ class OffSurface : public Simulator {
 
 public:
     OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path);
-    virtual void step();
-    virtual bool stop();
+    virtual void step() override;
+    virtual bool stop() override;
 
     void mapping();
     void lifting();
     void landing();
 
-    auto& p() { return m_p; }
-    auto& v() { return m_v; }
+    auto& p() { return m_position; }
+    auto& v() { return m_velocity; }
     auto& touching() { return m_touching; }
     auto& r() { return m_r; }
     auto& l() { return m_l; }

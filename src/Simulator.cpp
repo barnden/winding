@@ -23,19 +23,19 @@ Simulator::Simulator(
 {
     if (init_path.size()) {
         m_size = init_path.size();
-        m_p_init = init_path;
+        m_position_initial = init_path;
 
         return;
     }
 
-    m_p_init = decltype(m_p_init)(m_size, Vec2::Zero());
+    m_position_initial = decltype(m_position_initial)(m_size, Vec2::Zero());
 
     Vec2 p0(0., -1.);
     Vec2 p1(9.43347686131086, 0.9965750445589878);
     Vec2 dp = (p1 - p0) / (m_size - 1.);
 
     for (int i = 0; i < m_size; i++)
-        m_p_init[i] = p0 + (double)i * dp;
+        m_position_initial[i] = p0 + (double)i * dp;
 }
 
 Simulator::~Simulator() {};
@@ -54,8 +54,8 @@ void Simulator::simulate(int k)
 OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path)
     : Simulator(f, init_path)
 {
-    m_p = m_p_init;
-    m_v = decltype(m_v)(size(), Vec2::Zero());
+    m_position = m_position_initial;
+    m_velocity = decltype(m_velocity)(size(), Vec2::Zero());
     m_touching = decltype(m_touching)(size(), true);
     m_l = decltype(m_l)(size(), 1);
     m_r = decltype(m_r)(size(), 1);
@@ -86,8 +86,8 @@ void OffSurface::step()
     std::vector<Triplet> Mh2K_ele(9 * N - 12);
 
     for (auto&& [i, pidx] : enumerate(touching)) {
-        Vec2 const& p = m_p[pidx];
-        Vec2 const& v = m_v[pidx];
+        Vec2 const& p = m_position[pidx];
+        Vec2 const& v = m_velocity[pidx];
 
         varr.segment<2>(2 * i) = v;
 
@@ -155,8 +155,8 @@ void OffSurface::step()
 
         // clang-format off
         Vec3 force = m_ksp
-                   * (1. / L * (surface().f(m_p[pidx - L]) - surface().f(p))
-                   +  1. / R * (surface().f(m_p[pidx + R]) - surface().f(p)));
+                   * (1. / L * (surface().f(m_position[pidx - L]) - surface().f(p))
+                   +  1. / R * (surface().f(m_position[pidx + R]) - surface().f(p)));
         // clang-format on
 
         forces.segment<3>(3 * i) = force;
@@ -173,7 +173,7 @@ void OffSurface::step()
     solver.factorize(mat);
 
     if (solver.info() != Eigen::Success) {
-        std::cout << "Failed to factorize matrix " << solver.info() << " " << mat.cols() << std::endl;
+        std::cout << "Failed to factorize matrix (info: " << solver.info() << ") (col:" << mat.cols() << ')' << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -182,8 +182,8 @@ void OffSurface::step()
     for (int i = 1; i < N - 1; i++) {
         int const& idx = touching[i];
 
-        m_v[idx] = varr.segment<2>(2 * i);
-        m_p[idx] += m_v[idx] * m_dt;
+        m_velocity[idx] = varr.segment<2>(2 * i);
+        m_position[idx] += m_velocity[idx] * m_dt;
     }
 
     lifting();
@@ -194,7 +194,7 @@ void OffSurface::step()
 bool OffSurface::stop()
 {
     for (int i = 0; i < size(); i++)
-        if (m_touching[i] && (m_v[i].x() * surface().f_u(m_p[i]) + m_v[i].y() * surface().f_v(m_p[i])).norm() > m_v_eps)
+        if (m_touching[i] && (m_velocity[i].x() * surface().f_u(m_position[i]) + m_velocity[i].y() * surface().f_v(m_position[i])).norm() > m_v_eps)
             return false;
 
     return true;
@@ -203,16 +203,16 @@ bool OffSurface::stop()
 void OffSurface::mapping()
 {
     int cl = 0;
-    int cr = m_r[0];
+    int cr = 0;
 
     while (cl != size() - 1) {
         int len = m_r[cl];
         cr = cl + len;
-        Vec3 p0 = surface().f(m_p[cl]);
-        Vec3 p1 = surface().f(m_p[cr]);
+        Vec3 p0 = surface().f(m_position[cl]);
+        Vec3 p1 = surface().f(m_position[cr]);
 
         for (int i = 1; i < m_r[cl]; i++)
-            m_p[cl + i] = surface().closest_point(((double)i / len) * p1 + ((double)(len - i) / len) * p0, m_p[cl + i]);
+            m_position[cl + i] = surface().closest_point(((double)i / len) * p1 + ((double)(len - i) / len) * p0, m_position[cl + i]);
 
         cl = cr;
     }
@@ -223,14 +223,14 @@ void OffSurface::lifting()
     int cl = 0;
     int cm = m_r[0];
 
-    Vec3 pl = surface().f(m_p[0]);
-    Vec3 pm = surface().f(m_p[cm]);
+    Vec3 pl = surface().f(m_position[0]);
+    Vec3 pm = surface().f(m_position[cm]);
 
     while (cm < size() - 1) {
         int cr = cm + m_r[cm];
-        Vec3 pr = surface().f(m_p[cr]);
+        Vec3 pr = surface().f(m_position[cr]);
 
-        if ((pl + pr - 2. * pm).dot(surface().normal(m_p[cm])) > 0.) { // lift
+        if ((pl + pr - 2. * pm).dot(surface().normal(m_position[cm])) > 0.) { // lift
             m_touching[cm] = false;
             m_l[cm] = 1;
             m_r[cm] = 1;
@@ -254,8 +254,8 @@ void OffSurface::landing()
     int cl = 0;
     int cr = m_r[0];
 
-    Vec3 pl = surface().f(m_p[0]);
-    Vec3 pr = surface().f(m_p[cr]);
+    Vec3 pl = surface().f(m_position[0]);
+    Vec3 pr = surface().f(m_position[cr]);
 
     while (cl != size() - 1) {
         int cm = cl + 1;
@@ -263,9 +263,9 @@ void OffSurface::landing()
 
         for (; cm < cr; cm++) {
             double mu = (double)(cm - cl) / (cr - cl);
-            pm = surface().f(m_p[cm]);
+            pm = surface().f(m_position[cm]);
 
-            if ((pm - (mu * pr + (1. - mu) * pl)).dot(surface().normal(m_p[cm])) > 0.) {
+            if ((pm - (mu * pr + (1. - mu) * pl)).dot(surface().normal(m_position[cm])) > 0.) {
                 m_l[cm] = cm - cl;
                 m_r[cl] = cm - cl;
 
@@ -273,7 +273,7 @@ void OffSurface::landing()
                 m_r[cm] = cr - cm;
 
                 m_touching[cm] = true;
-                m_v[cm] = mu * m_v[cr] + (1. - mu) * m_v[cl];
+                m_velocity[cm] = mu * m_velocity[cr] + (1. - mu) * m_velocity[cl];
 
                 break;
             }
@@ -286,7 +286,7 @@ void OffSurface::landing()
             cl = cr;
             cr = cl + m_r[cl];
             pl = pr;
-            pr = surface().f(m_p[cr]);
+            pr = surface().f(m_position[cr]);
 
             continue;
         }
