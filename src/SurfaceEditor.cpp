@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
-#ifdef USE_QPMAD
+#if USE_QPMAD
 #    include <qpmad/solver.h>
 #else
 #    include "epigraph.hpp"
@@ -57,6 +57,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
         b(i) = (world - m_surface.f(shadow)).dot(normal);
     }
 
+
 #if USE_QPMAD
     auto solver = qpmad::Solver();
     Eigen::VectorXd deltaC(3 * m);
@@ -89,7 +90,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
     Eigen::VectorXd deltaC = cvx::eval(dC);
 
 #endif
-    std::cout << "[Editor] Solved least-norm QP, solution L2 norm of solution " << deltaC.norm() << '\n';
+    std::cout << "[Editor] Solved least-norm QP, solution L2 norm " << deltaC.norm() << '\n';
     auto augmented_control_points = std::vector<std::vector<Vec3>>(m_surface.m_nv, std::vector<Vec3>(m_surface.m_nu, Vec3::Zero()));
     auto ostream = std::ofstream("spline-step-" + std::to_string(m_step + 1) + ".txt");
 

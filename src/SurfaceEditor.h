@@ -22,7 +22,13 @@ public:
         , m_num_revolutions(num_revolutions)
         , m_num_paths(num_paths)
         , m_num_particles(num_particles)
-        , m_step(0) {};
+        , m_step(0) {
+            #if USE_QPMAD
+            std::cout << "[Editor] Using qpmad.\n";
+            #else
+            std::cout << "[Editor] Using Epigraph.\n";
+            #endif
+        }
 
     void step(double dt, double ksp, double kdp, double eps);
 };
