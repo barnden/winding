@@ -35,6 +35,8 @@ public:
         , m_nu(nu)
         , m_nv(nv)
     {
+        m_basis = 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
+
         m_uMin = 0.;
         m_uMax = nu;
         m_vMin = 2.;
