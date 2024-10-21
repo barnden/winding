@@ -142,31 +142,38 @@ Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
     Eigen::Matrix3d static const I = Eigen::Matrix3d::Identity();
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(3, 3 * m_nv * m_nu);
 
+    auto const get_index = [&](int v, int u) {
+        u %= m_nu;
+        if (u < 0)
+            u += m_nu;
+
+        return 3 * (v * m_nu + u);
+    };
     auto const [u, v, iu, iv] = get_uv(p);
 
     Eigen::RowVector4d U = Eigen::RowVector4d(u * u * u, u * u, u, 1.) * m_basis;
     Eigen::RowVector4d V = Eigen::RowVector4d(v * v * v, v * v, v, 1.) * m_basis;
 
     {
-        J.block<3, 3>(0, 3 * ((iv - 2) * m_nu + (iu - 2))) = V(0) * U(0) * I;
-        J.block<3, 3>(0, 3 * ((iv - 2) * m_nu + (iu - 1))) = V(0) * U(1) * I;
-        J.block<3, 3>(0, 3 * ((iv - 2) * m_nu + (iu + 0))) = V(0) * U(2) * I;
-        J.block<3, 3>(0, 3 * ((iv - 2) * m_nu + (iu + 1))) = V(0) * U(3) * I;
+        J.block<3, 3>(0, get_index(iv - 2, iu - 2)) = V(0) * U(0) * I;
+        J.block<3, 3>(0, get_index(iv - 2, iu - 1)) = V(0) * U(1) * I;
+        J.block<3, 3>(0, get_index(iv - 2, iu + 0)) = V(0) * U(2) * I;
+        J.block<3, 3>(0, get_index(iv - 2, iu + 1)) = V(0) * U(3) * I;
 
-        J.block<3, 3>(0, 3 * ((iv - 1) * m_nu + (iu - 2))) = V(1) * U(0) * I;
-        J.block<3, 3>(0, 3 * ((iv - 1) * m_nu + (iu - 1))) = V(1) * U(1) * I;
-        J.block<3, 3>(0, 3 * ((iv - 1) * m_nu + (iu + 0))) = V(1) * U(2) * I;
-        J.block<3, 3>(0, 3 * ((iv - 1) * m_nu + (iu + 1))) = V(1) * U(3) * I;
+        J.block<3, 3>(0, get_index(iv - 1, iu - 2)) = V(1) * U(0) * I;
+        J.block<3, 3>(0, get_index(iv - 1, iu - 1)) = V(1) * U(1) * I;
+        J.block<3, 3>(0, get_index(iv - 1, iu + 0)) = V(1) * U(2) * I;
+        J.block<3, 3>(0, get_index(iv - 1, iu + 1)) = V(1) * U(3) * I;
 
-        J.block<3, 3>(0, 3 * ((iv + 0) * m_nu + (iu - 2))) = V(2) * U(0) * I;
-        J.block<3, 3>(0, 3 * ((iv + 0) * m_nu + (iu - 1))) = V(2) * U(1) * I;
-        J.block<3, 3>(0, 3 * ((iv + 0) * m_nu + (iu + 0))) = V(2) * U(2) * I;
-        J.block<3, 3>(0, 3 * ((iv + 0) * m_nu + (iu + 1))) = V(2) * U(3) * I;
+        J.block<3, 3>(0, get_index(iv + 0, iu - 2)) = V(2) * U(0) * I;
+        J.block<3, 3>(0, get_index(iv + 0, iu - 1)) = V(2) * U(1) * I;
+        J.block<3, 3>(0, get_index(iv + 0, iu + 0)) = V(2) * U(2) * I;
+        J.block<3, 3>(0, get_index(iv + 0, iu + 1)) = V(2) * U(3) * I;
 
-        J.block<3, 3>(0, 3 * ((iv + 1) * m_nu + (iu - 2))) = V(3) * U(0) * I;
-        J.block<3, 3>(0, 3 * ((iv + 1) * m_nu + (iu - 1))) = V(3) * U(1) * I;
-        J.block<3, 3>(0, 3 * ((iv + 1) * m_nu + (iu + 0))) = V(3) * U(2) * I;
-        J.block<3, 3>(0, 3 * ((iv + 1) * m_nu + (iu + 1))) = V(3) * U(3) * I;
+        J.block<3, 3>(0, get_index(iv + 1, iu - 2)) = V(3) * U(0) * I;
+        J.block<3, 3>(0, get_index(iv + 1, iu - 1)) = V(3) * U(1) * I;
+        J.block<3, 3>(0, get_index(iv + 1, iu + 0)) = V(3) * U(2) * I;
+        J.block<3, 3>(0, get_index(iv + 1, iu + 1)) = V(3) * U(3) * I;
     }
 
     return J;
