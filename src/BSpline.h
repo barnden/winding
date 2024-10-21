@@ -15,11 +15,12 @@ class CubicBSpline : public ParametricSurface {
     [[nodiscard]] inline Eigen::RowVector3d get(int v, int u) const;
 
     template <typename UFunc, typename FFunc>
-    Vec3 interpolate(UFunc&& get_u, FFunc&& get_v, Vec2 const& p) const;
+    [[gnu::flatten]] Vec3 interpolate(UFunc&& get_u, FFunc&& get_v, Vec2 const& p) const;
 
 public:
     int m_nu;
     int m_nv;
+
     explicit CubicBSpline(std::string const& file)
     {
         if (file.empty())
@@ -42,53 +43,12 @@ public:
 
     void read(std::string const& file);
 
-    [[nodiscard]] Vec3 f(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
-            [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
-            p);
-    }
-
-    [[nodiscard]] Vec3 f_u(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
-            [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
-            p);
-    }
-
-    [[nodiscard]] Vec3 f_v(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
-            [](double v) { return Eigen::RowVector4d(3. * v * v, 2. * v, 1., 0.); },
-            p);
-    }
-
-    [[nodiscard]] Vec3 f_uv(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
-            [](double v) { return Eigen::RowVector4d(3. * v * v, 2. * v, 1., 0.); },
-            p);
-    }
-
-    [[nodiscard]] Vec3 f_uu(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(6. * u, 2., 0., 0.); },
-            [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
-            p);
-    }
-
-    [[nodiscard]] Vec3 f_vv(Vec2 const& p) const override
-    {
-        return interpolate(
-            [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
-            [](double v) { return Eigen::RowVector4d(6. * v, 2., 0., 0.); },
-            p);
-    }
+    [[nodiscard]] Vec3 f(Vec2 const& p) const override;
+    [[nodiscard]] Vec3 f_u(Vec2 const& p) const override;
+    [[nodiscard]] Vec3 f_v(Vec2 const& p) const override;
+    [[nodiscard]] Vec3 f_uv(Vec2 const& p) const override;
+    [[nodiscard]] Vec3 f_uu(Vec2 const& p) const override;
+    [[nodiscard]] Vec3 f_vv(Vec2 const& p) const override;
 
     [[nodiscard]] Eigen::MatrixXd jacobian(Vec2 const& p) const;
 

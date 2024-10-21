@@ -6,7 +6,8 @@
 #include <fstream>
 
 #include "BSpline.h"
-#include "Utils.h"
+#include "utils.h"
+#include <iostream>
 
 std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
 {
@@ -86,6 +87,54 @@ void CubicBSpline::read(std::string const& file)
     }
 
     stream.close();
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
+        [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
+        p);
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f_u(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
+        [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
+        p);
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f_v(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
+        [](double v) { return Eigen::RowVector4d(3. * v * v, 2. * v, 1., 0.); },
+        p);
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f_uv(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
+        [](double v) { return Eigen::RowVector4d(3. * v * v, 2. * v, 1., 0.); },
+        p);
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f_uu(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(6. * u, 2., 0., 0.); },
+        [](double v) { return Eigen::RowVector4d(v * v * v, v * v, v, 1.); },
+        p);
+}
+
+[[nodiscard]] Vec3 CubicBSpline::f_vv(Vec2 const& p) const
+{
+    return interpolate(
+        [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
+        [](double v) { return Eigen::RowVector4d(6. * v, 2., 0., 0.); },
+        p);
 }
 
 Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
