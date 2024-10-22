@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "BSpline.h"
+#include "Surfaces/BSpline.h"
 #include "Composer.h"
 
 class SurfaceEditor {

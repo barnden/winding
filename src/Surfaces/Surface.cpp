@@ -1,4 +1,9 @@
-#include "Surface.h"
+/*
+ * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+#include "Surfaces/Surface.h"
 #include <ranges>
 
 ParametricSurface::ParametricSurface()

@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "Surface.h"
+#include "Surfaces/Surface.h"
 
 class CubicBSpline : public ParametricSurface {
     std::vector<std::vector<Vec3>> m_points;

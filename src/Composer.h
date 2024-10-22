@@ -3,7 +3,7 @@
 #    define COMPOSER_H
 
 #    include "Simulator.h"
-#    include "Surface.h"
+#    include "Surfaces/Surface.h"
 #    include <iostream>
 #    include <vector>
 

@@ -2,7 +2,7 @@
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
 
-#include "Surface.h"
+#include "Surfaces/Surface.h"
 #include "utils.h"
 
 class Simulator {
