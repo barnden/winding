@@ -3,6 +3,10 @@ import re
 from mayavi import mlab
 from matplotlib import pyplot as plt
 
+from traits.api import HasTraits, Range, List, Instance, on_trait_change, Enum
+from traitsui.api import View, Item, Group, CheckListEditor, EnumEditor
+from mayavi.core.ui.api import MayaviScene, SceneEditor, MlabSceneModel
+
 class Surface:
     x_limits = [-1, 1]
     y_limits = [-1, 1]
@@ -233,49 +237,109 @@ class BSpline(Surface):
 
         return mesh
 
+class Visualization(HasTraits):
+    mesh = Range(0, 11, 0)
+    options = List(editor=CheckListEditor(values=["Show Control Mesh"]))
+    path_type = Enum('None', 'Distance', 'Path Distance', 'Angles')
+    
+    scene = Instance(MlabSceneModel, ())
 
-if __name__ == "__main__":
-    cmap = plt.get_cmap('viridis')
-    cmaplist = np.array([cmap(i) for i in range(cmap.N)]) * 255
+    view = View(
+            Item('scene', editor=SceneEditor(scene_class=MayaviScene),
+                 height=725, width=725, show_label=False),
+            Group(
+                Item('mesh', show_label=False),
+                Item('options', style='custom', show_label=False),
+                Item('path_type', style='custom', editor=EnumEditor(values=['None', 'Distance', 'Path Distance', 'Angles'], cols=4), show_label=False),
+                label='Display Options',
+                show_border=True
+            ),
+            title="Winding"
+        )
 
-    # root = "surface-editing"
-    # surfaces = [BSpline(f"{root}/path-{x}.txt", f"{root}/spline-step-{x}.txt") for x in range(12)]
+    def __init__(self, surfaces):
+        HasTraits.__init__(self)
 
-    surfaces = [
-        # BSpline("../build/path-0.txt", "surface-editing/spline-step-0.txt"),
-        BSpline(None, "../build/spline-step-1.txt")
-    ]
+        self.meshes = []
+        self.control_meshes = []
+        self.paths = []
 
-    for surface in surfaces:
-        X = surface.generate_mesh(128)
+        self.initialize()
 
-        if surface.winding_path_file is not None:
-            path = np.array(surface.winding_path())
+    def initialize(self):
+        cmap = plt.get_cmap('viridis')
+        cmaplist = np.array([cmap(i) for i in range(cmap.N)]) * 255
 
-        # paths = np.array(simulate())
+        for surface in surfaces:
+            mesh = mlab.mesh(*surface.generate_mesh(128), color=(0.6, 0.65, 0.8), figure=self.scene.mayavi_scene)
+            self.meshes.append(mesh)
 
-        for i, title in [(4, "Surface Dist."), (5, "Path Dist."), (6, "Angle")]:
-            mlab.figure(title, size=(1080, 720), fgcolor=(1., 1., 1.), bgcolor=(.1, .1, .1))
+            if surface.winding_path_file is not None:
+                path = np.array(surface.winding_path())
+
+                # 4: dist to surface, 5: path dist, 6: angles
+                paths = []
+                for j in range(4, 7):
+                    winding_plot = mlab.plot3d(*np.array(path)[:, 1:4].T, abs(np.array(path)[:, j].T), tube_radius=0.003)
+                    winding_plot.module_manager.scalar_lut_manager.lut.table = cmaplist
+
+                    paths.append(winding_plot)
+
+                self.paths.append(paths)
+
+            control_mesh = []
 
             if isinstance(surface, BSpline):
                 J = surface.points.shape[1] // 3
-                mlab.points3d(surface.points[:, :J, 0], surface.points[:, :J, 1], surface.points[:, :J, 2], scale_factor=.025)
+                control_points = mlab.points3d(surface.points[:, :J, 0], surface.points[:, :J, 1], surface.points[:, :J, 2], scale_factor=.025, figure=self.scene.mayavi_scene)
+                control_mesh.append(control_points)
 
                 for j in range(surface.points.shape[0]):
-                    mlab.plot3d(surface.points[j, :J, 0], surface.points[j, :J, 1], surface.points[j, :J, 2], tube_radius=0.003)
+                    line = mlab.plot3d(surface.points[j, :J, 0], surface.points[j, :J, 1], surface.points[j, :J, 2], tube_radius=0.003, figure=self.scene.mayavi_scene)
+                    control_mesh.append(line)
 
                 for j in range(J):
-                    mlab.plot3d(surface.points[:, j, 0], surface.points[:, j, 1], surface.points[:, j, 2], tube_radius=0.003)
+                    line = mlab.plot3d(surface.points[:, j, 0], surface.points[:, j, 1], surface.points[:, j, 2], tube_radius=0.003, figure=self.scene.mayavi_scene)
+                    control_mesh.append(line)
 
-            mlab.mesh(*X, color=(0.6, 0.65, 0.8))
+            self.control_meshes.append(control_mesh)
 
-            if surface.winding_path_file is not None:
-                # 4: dist to surface, 5: path dist, 6: angles
-                winding_plot = mlab.plot3d(*np.array(path)[:, 1:4].T, abs(np.array(path)[:, i].T), tube_radius=0.003)
-                winding_plot.module_manager.scalar_lut_manager.lut.table = cmaplist
+        self.on_mesh_change()
 
-            view = (90., 60, 5, (0, 0, 0))
-            mlab.view(*view, reset_roll=True)
-            mlab.show()
+    @on_trait_change('mesh')
+    def on_mesh_change(self):
+        for i in range(0, len(surfaces)):
+            self.meshes[i].visible = False
 
-            break
+        self.meshes[int(self.mesh)].visible = True
+
+        self.on_option_change()
+        self.on_path_type_change()
+
+    @on_trait_change('options')
+    def on_option_change(self):
+        for control_mesh in self.control_meshes:
+            for item in control_mesh:
+                item.visible = False
+
+        if 'Show Control Mesh' in self.options:
+            for item in self.control_meshes[int(self.mesh)]:
+                item.visible = True
+
+    @on_trait_change('path_type')
+    def on_path_type_change(self):
+        for paths in self.paths:
+            for path in paths:
+                path.visible = False
+
+        if self.path_type == 'None':
+            return
+
+        idx = ['Distance', 'Path Distance', 'Angles'].index(self.path_type)
+        self.paths[int(self.mesh)][idx].visible = True
+
+if __name__ == "__main__":
+    root = "../build/"
+    surfaces = [BSpline(f"{root}/path-{x}.txt", f"{root}/spline-step-{x}.txt") for x in range(15)]
+    viz = Visualization(surfaces)
+    viz.configure_traits()
