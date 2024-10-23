@@ -51,12 +51,12 @@ template <typename UFunc, typename FFunc>
     Eigen::RowVector4d V = get_v(v) * m_basis;
 
     // clang-format off
-        Eigen::MatrixXd P = (Eigen::MatrixXd(4, 3)
-                                 << V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 2), get(iv - 1, iu - 2), get(iv, iu - 2), get(iv + 1, iu - 2)).finished(),
-                                    V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 1), get(iv - 1, iu - 1), get(iv, iu - 1), get(iv + 1, iu - 1)).finished(),
-                                    V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 0), get(iv - 1, iu + 0), get(iv, iu + 0), get(iv + 1, iu + 0)).finished(),
-                                    V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 1), get(iv - 1, iu + 1), get(iv, iu + 1), get(iv + 1, iu + 1)).finished())
-                                .finished();
+    Eigen::MatrixXd P = (Eigen::MatrixXd(4, 3) <<
+                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 2), get(iv - 1, iu - 2), get(iv, iu - 2), get(iv + 1, iu - 2)).finished(),
+                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 1), get(iv - 1, iu - 1), get(iv, iu - 1), get(iv + 1, iu - 1)).finished(),
+                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 0), get(iv - 1, iu + 0), get(iv, iu + 0), get(iv + 1, iu + 0)).finished(),
+                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 1), get(iv - 1, iu + 1), get(iv, iu + 1), get(iv + 1, iu + 1)).finished())
+                            .finished();
     // clang-format on
 
     return U * P;
@@ -139,7 +139,6 @@ void CubicBSpline::read(std::string const& file)
 
 Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
 {
-    Eigen::Matrix3d static const I = Eigen::Matrix3d::Identity();
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(3, 3 * m_nv * m_nu);
 
     auto const get_index = [&](int v, int u) {
@@ -154,27 +153,9 @@ Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
     Eigen::RowVector4d U = Eigen::RowVector4d(u * u * u, u * u, u, 1.) * m_basis;
     Eigen::RowVector4d V = Eigen::RowVector4d(v * v * v, v * v, v, 1.) * m_basis;
 
-    {
-        J.block<3, 3>(0, get_index(iv - 2, iu - 2)) = V(0) * U(0) * I;
-        J.block<3, 3>(0, get_index(iv - 2, iu - 1)) = V(0) * U(1) * I;
-        J.block<3, 3>(0, get_index(iv - 2, iu + 0)) = V(0) * U(2) * I;
-        J.block<3, 3>(0, get_index(iv - 2, iu + 1)) = V(0) * U(3) * I;
-
-        J.block<3, 3>(0, get_index(iv - 1, iu - 2)) = V(1) * U(0) * I;
-        J.block<3, 3>(0, get_index(iv - 1, iu - 1)) = V(1) * U(1) * I;
-        J.block<3, 3>(0, get_index(iv - 1, iu + 0)) = V(1) * U(2) * I;
-        J.block<3, 3>(0, get_index(iv - 1, iu + 1)) = V(1) * U(3) * I;
-
-        J.block<3, 3>(0, get_index(iv + 0, iu - 2)) = V(2) * U(0) * I;
-        J.block<3, 3>(0, get_index(iv + 0, iu - 1)) = V(2) * U(1) * I;
-        J.block<3, 3>(0, get_index(iv + 0, iu + 0)) = V(2) * U(2) * I;
-        J.block<3, 3>(0, get_index(iv + 0, iu + 1)) = V(2) * U(3) * I;
-
-        J.block<3, 3>(0, get_index(iv + 1, iu - 2)) = V(3) * U(0) * I;
-        J.block<3, 3>(0, get_index(iv + 1, iu - 1)) = V(3) * U(1) * I;
-        J.block<3, 3>(0, get_index(iv + 1, iu + 0)) = V(3) * U(2) * I;
-        J.block<3, 3>(0, get_index(iv + 1, iu + 1)) = V(3) * U(3) * I;
-    }
+    for (auto l = 0; l < 4; l++)
+        for (auto m = 0; m < 4; m++)
+            J.block<3, 3>(0, get_index(iv + (l - 2), iu + (m - 2))).diagonal().array() = V(l) * U(m);
 
     return J;
 }
