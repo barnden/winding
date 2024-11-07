@@ -22,12 +22,12 @@ protected:
 
 public:
     Simulator(ParametricSurface const& f, std::vector<Vec2> const& init_path);
-    ~Simulator();
+    ~Simulator() = default;
 
     virtual void step() = 0;
     virtual bool stop() = 0;
 
-    void simulate(int k);
+    void simulate(int num_iterations);
 
     decltype(auto) size() const { return m_size; }
     decltype(auto) surface() { return m_surface; }

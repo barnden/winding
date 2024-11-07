@@ -21,7 +21,7 @@ Simulator::Simulator(
     , m_t(0.)
     , m_v_eps(0.001)
 {
-    if (init_path.size()) {
+    if (!init_path.empty()) {
         m_size = init_path.size();
         m_position_initial = init_path;
 
@@ -38,12 +38,10 @@ Simulator::Simulator(
         m_position_initial[i] = p0 + (double)i * dp;
 }
 
-Simulator::~Simulator() {};
-
-void Simulator::simulate(int k)
+void Simulator::simulate(int num_iterations)
 {
     int i;
-    for (i = 0; (i < k && i < 10) || (i < k && !stop()); i++) {
+    for (i = 0; (i < num_iterations && i < 10) || (i < num_iterations && !stop()); i++) {
         m_t += m_dt;
         step();
     }
