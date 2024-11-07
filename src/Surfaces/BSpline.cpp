@@ -13,8 +13,14 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
 {
     Vec2 uv = p;
 
-    while (uv.x() < 0.)
+    uv.x() = std::fmod(uv.x(), m_uMax);
+    uv.y() = std::fmod(uv.y(), m_vMax);
+
+    while (uv.x() < m_uMin)
         uv.x() += m_uMax;
+
+    while (uv.y() < m_vMin)
+        uv.y() += m_vMax;
 
     auto iu = (int)uv.x();
     auto iv = (int)uv.y();
@@ -29,6 +35,10 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
     uv.y() -= iv;
 
     iu %= m_nu;
+    iv %= m_nv;
+
+    if (iv == 0)
+        iv = 2;
 
     return std::make_tuple(uv.x(), uv.y(), iu, iv);
 }
