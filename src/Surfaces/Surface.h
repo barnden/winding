@@ -17,26 +17,26 @@ class ParametricSurface {
 public:
     ParametricSurface();
 
-    virtual Vec3 f(Vec2 const& p) const = 0;
-    virtual Vec3 f_u(Vec2 const& p) const;
-    virtual Vec3 f_v(Vec2 const& p) const;
-    virtual Vec3 f_uu(Vec2 const& p) const;
-    virtual Vec3 f_uv(Vec2 const& p) const;
-    virtual Vec3 f_vv(Vec2 const& p) const;
-    virtual Vec3 normal(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 f(Vec2 const& p) const = 0;
+    [[nodiscard]] virtual Vec3 f_u(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 f_v(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 f_uu(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 f_uv(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 f_vv(Vec2 const& p) const;
+    [[nodiscard]] virtual Vec3 normal(Vec2 const& p) const;
 
-    Vec3 nf_u(Vec2 const& p) const;
-    Vec3 nf_v(Vec2 const& p) const;
-    Vec3 nf_uu(Vec2 const& p) const;
-    Vec3 nf_uv(Vec2 const& p) const;
-    Vec3 nf_vv(Vec2 const& p) const;
+    [[nodiscard]] Vec3 nf_u(Vec2 const& p) const;
+    [[nodiscard]] Vec3 nf_v(Vec2 const& p) const;
+    [[nodiscard]] Vec3 nf_uu(Vec2 const& p) const;
+    [[nodiscard]] Vec3 nf_uv(Vec2 const& p) const;
+    [[nodiscard]] Vec3 nf_vv(Vec2 const& p) const;
 
-    Vec2 rescale(Vec2 const& p) const;
+    [[nodiscard]] Vec2 rescale(Vec2 const& p) const;
 
     void generate_search_grid(int nu, int nv);
 
-    Vec2 closest_point(Vec3 const& p) const;
-    Vec2 closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations = 1000) const;
+    [[nodiscard]] Vec2 closest_point(Vec3 const& p) const;
+    [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations = 1000) const;
 
     std::vector<Vec2> m_grid2D;
     std::vector<Vec3> m_grid3D;
