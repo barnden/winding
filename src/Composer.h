@@ -76,7 +76,17 @@ class Composer {
         void interpolate(double t, double& dist, double& angle) const
         {
             IntersectionNode* p = head->next_up;
+
+            if (p->next_up == nullptr) {
+                dist = p->dist_score;
+                angle = p->angle_score;
+
+                return;
+            }
+
             while (p->next_up->next_up != rear && t > p->next_up->t_up) {
+                if (p->next_up == nullptr)
+                    break;
                 p = p->next_up;
             }
             double lambda = (t - p->t_up) / (p->next_up->t_up - p->t_up);
@@ -113,7 +123,16 @@ class Composer {
         void interpolate(double t, double& dist, double& angle) const
         {
             IntersectionNode* p = head->next_down;
+
+            if (p->next_down == nullptr) {
+                dist = p->dist_score;
+                angle = p->angle_score;
+
+                return;
+            }
             while (p->next_down->next_down != rear && t > p->next_down->t_down) {
+                if (p->next_down == nullptr)
+                    break;
                 p = p->next_down;
             }
             double lambda = (t - p->t_down) / (p->next_down->t_down - p->t_down);
