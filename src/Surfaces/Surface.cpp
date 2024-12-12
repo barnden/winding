@@ -112,11 +112,11 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) cons
     return closest_point(p, m_grid2D[id], max_iterations);
 }
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations) const
+Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations) const
 {
     Vec2 xk = guess;
 
-    for (int i = 0; i < max_iterations; i++) {
+    for (auto i = 0uz; i < max_iterations; i++) {
         Vec3 fp = f(xk) - p;
         Vec3 fu = f_u(xk);
         Vec3 fv = f_v(xk);
@@ -124,16 +124,31 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, int max_
         Vec3 fuv = f_uv(xk);
         Vec3 fvv = f_vv(xk);
 
-        double h11 = fuu.dot(fp) + fu.dot(fu);
-        double h12 = fuv.dot(fp) + fu.dot(fv);
-        double h22 = fvv.dot(fp) + fv.dot(fv);
+        Vec2 Jf(fu.dot(fp), fv.dot(fp));
+        Vec2 Jg(
+            0.,
+            0.//1. / (m_vMax - xk.y()) - 1. / (xk.y() - m_vMin)
+        );
 
-        Vec2 dx(h22 * fu.dot(fp) - h12 * fv.dot(fp), -h12 * fu.dot(fp) + h11 * fv.dot(fp));
-        dx /= (h11 * h22 - h12 * h12);
-        xk -= 0.5 * dx;
+        Vec2 J = 2. * Jf + Jg;
+
+        Eigen::Matrix2d Hf = Eigen::Matrix2d::Zero();
+        Hf << fuu.dot(fp) + fu.dot(fu),
+            fuv.dot(fp) + fu.dot(fv),
+            fuv.dot(fp) + fu.dot(fv),
+            fvv.dot(fp) + fv.dot(fv);
+
+        Eigen::Matrix2d Hg = Eigen::Matrix2d::Zero();
+        // Hg(1, 1) = 1. / std::pow(xk.y() - m_vMin, 2.) + 1. / std::pow(m_vMax - xk.y(), 2.);
+
+        Eigen::Matrix2d H = 2. * Hf + Hg;
+
+        Vec2 dx = H.inverse() * J;
 
         if (dx.norm() <= 1e-5)
             break;
+
+        xk -= dx;
     }
 
     return xk;
