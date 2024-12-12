@@ -1,18 +1,54 @@
 #include "Composer.h"
 #include "Simulator.h"
-#include "Surface.h"
+#include "SurfaceEditor.h"
+#include "Surfaces/Surface.h"
 #include "utils.h"
 
 #include <Eigen/Dense>
+#include <algorithm>
 #include <iostream>
 
-int main()
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+#ifdef STANDALONE
+int main(int argc, char* argv[])
 {
-#ifdef DEBUG_FPE_TRAP
+#    ifdef DEBUG_FPE_TRAP
     enable_floating_point_exceptions();
-#endif
-    auto num_revolutions = 10.;
-    auto num_paths = 1;
+#    endif
+
+    Options options;
+    if (argc > 1)
+        options.data_path = std::string(argv[1]);
+
+    if (argc > 2)
+        options.file_stem = std::string(argv[2]);
+
+    if (argc > 3)
+        options.out_path = std::string(argv[3]);
+
+    if (argc > 3)
+        options.experiment = std::string(argv[4]);
+
+    {
+        auto create_if_not_exists = [](auto const& path) {
+            if (!fs::is_directory(path) || fs::exists(path))
+                fs::create_directory(path);
+        };
+
+        create_if_not_exists(options.out_path);
+        create_if_not_exists(options.out_path + "/" + options.experiment);
+        create_if_not_exists(options.out_path + "/" + options.experiment + "/spline");
+        create_if_not_exists(options.out_path + "/" + options.experiment + "/path");
+        create_if_not_exists(options.out_path + "/" + options.experiment + "/max_quad");
+
+        fs::copy_file(options.data_path + "/" + options.file_stem + ".txt", options.out_path + "/" + options.experiment + "/spline/step-0.txt");
+    }
+
+    auto num_revolutions = .6;
+    auto num_paths = 32;
     auto num_particles = 200;
 
     auto dt = 0.05;
@@ -20,37 +56,11 @@ int main()
     auto kdp = 200.;
     auto eps = 0.001;
 
-    auto surface = TrefoilKnot();
-    auto composer = Composer(surface, num_revolutions, num_paths, num_particles);
-    composer.generate_winding_order();
+    auto surface = CubicBSpline(options);
+    auto editor = SurfaceEditor(surface, options, num_revolutions, num_paths, num_particles);
 
-    auto parr = std::vector<std::vector<Vec2>>(composer.initial_path().size());
-    auto rarr = std::vector<std::vector<int>>(composer.initial_path().size());
-
-    for (auto&& [j, i] : enumerate(composer.winding_order())) {
-        auto simulator = OffSurface(surface, composer.initial_path()[i]);
-
-        simulator.ksp() = ksp;
-        simulator.kdp() = kdp;
-        simulator.dt() = dt;
-        simulator.eps() = eps;
-
-        simulator.simulate(1000);
-        simulator.mapping();
-
-        parr[i] = simulator.p();
-        rarr[i] = simulator.r();
-
-        auto progress = 100. * (j + 1.) / composer.winding_order().size();
-        std::cout << round(progress) << "%\n\n";
-    }
-
-    // for (auto&& [j, i] : enumerate(composer.winding_order())) {
-    //     auto &p = parr[i];
-    //     auto &r = rarr[i];
-    // }
-
-    for (auto&& [i, p, r] : std::views::zip(std::views::iota(0), parr[2], rarr[2])) {
-        std::cout << i << ": (" << r << ") " << p.x() << ", " << p.y() << '\n';
+    for (auto i = 0; i < 16; i++) {
+        editor.step(dt, ksp, kdp, eps);
     }
 }
+#endif

@@ -49,8 +49,9 @@ void Simulator::simulate(int num_iterations)
     std::cout << i << " iterations simulated.\n";
 }
 
-OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path)
+OffSurface::OffSurface(Options const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path)
     : Simulator(f, init_path)
+    , m_options(options)
 {
     m_position = m_position_initial;
     m_velocity = decltype(m_velocity)(size(), Vec2::Zero());
@@ -209,8 +210,16 @@ void OffSurface::mapping()
         Vec3 p0 = surface().f(m_position[cl]);
         Vec3 p1 = surface().f(m_position[cr]);
 
-        for (int i = 1; i < m_r[cl]; i++)
-            m_position[cl + i] = surface().closest_point(((double)i / len) * p1 + ((double)(len - i) / len) * p0, m_position[cl + i]);
+        for (int i = 1; i < m_r[cl]; i++) {
+            Vec3 world = ((double)i / len) * p1 + ((double)(len - i) / len) * p0;
+
+            if (m_options.bruteforce_mapping) {
+                m_position[cl + i] = surface().closest_point(world);
+            } else {
+                Vec2 guess = m_position[cl + i];
+                m_position[cl + i] = surface().closest_point(world, guess);
+            }
+        }
 
         cl = cr;
     }

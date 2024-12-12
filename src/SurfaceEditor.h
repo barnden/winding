@@ -5,8 +5,9 @@
  */
 #pragma once
 
-#include "Surfaces/BSpline.h"
 #include "Composer.h"
+#include "Surfaces/BSpline.h"
+#include <string>
 
 class SurfaceEditor {
     CubicBSpline m_surface;
@@ -15,20 +16,23 @@ class SurfaceEditor {
     int m_num_paths;
     int m_num_particles;
     int m_step;
+    Options const& m_options;
 
 public:
-    SurfaceEditor(CubicBSpline& reference_surface, double num_revolutions, int num_paths, int num_particles)
+    SurfaceEditor(CubicBSpline& reference_surface, Options const& options, double num_revolutions, int num_paths, int num_particles)
         : m_surface(reference_surface)
         , m_num_revolutions(num_revolutions)
         , m_num_paths(num_paths)
         , m_num_particles(num_particles)
-        , m_step(0) {
-            #if USE_QPMAD
-            std::cout << "[Editor] Using qpmad.\n";
-            #else
-            std::cout << "[Editor] Using Epigraph.\n";
-            #endif
-        }
+        , m_step(0)
+        , m_options(options)
+    {
+#if USE_QPMAD
+        std::cout << "[Editor] Using qpmad.\n";
+#else
+        std::cout << "[Editor] Using Epigraph.\n";
+#endif
+    }
 
     void step(double dt, double ksp, double kdp, double eps);
 };

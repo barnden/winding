@@ -4,6 +4,7 @@
 
 #    include "Simulator.h"
 #    include "Surfaces/Surface.h"
+#    include <fstream>
 #    include <iostream>
 #    include <vector>
 
@@ -16,6 +17,8 @@
 class Composer {
     std::vector<std::vector<Vec2>> m_initial;
     std::vector<int> m_winding_order;
+
+    Options const& m_options;
     ParametricSurface const& m_surface;
 
     int m_num_paths;
@@ -77,18 +80,18 @@ class Composer {
         {
             IntersectionNode* p = head->next_up;
 
-            if (p->next_up == nullptr) {
-                dist = p->dist_score;
-                angle = p->angle_score;
+            // if (p->next_up == nullptr) {
+            //     dist = p->dist_score;
+            //     angle = p->angle_score;
 
-                return;
-            }
+            //     return;
+            // }
 
-            while (p->next_up->next_up != rear && t > p->next_up->t_up) {
-                if (p->next_up == nullptr)
-                    break;
-                p = p->next_up;
-            }
+            // while (p->next_up->next_up != rear && t > p->next_up->t_up) {
+            //     if (p->next_up == nullptr)
+            //         break;
+            //     p = p->next_up;
+            // }
             double lambda = (t - p->t_up) / (p->next_up->t_up - p->t_up);
             dist = lambda * p->next_up->dist_score + (1 - lambda) * p->dist_score;
             angle = lambda * p->next_up->angle_score + (1 - lambda) * p->angle_score;
@@ -124,17 +127,17 @@ class Composer {
         {
             IntersectionNode* p = head->next_down;
 
-            if (p->next_down == nullptr) {
-                dist = p->dist_score;
-                angle = p->angle_score;
+            // if (p->next_down == nullptr) {
+            //     dist = p->dist_score;
+            //     angle = p->angle_score;
 
-                return;
-            }
-            while (p->next_down->next_down != rear && t > p->next_down->t_down) {
-                if (p->next_down == nullptr)
-                    break;
-                p = p->next_down;
-            }
+            //     return;
+            // }
+            // while (p->next_down->next_down != rear && t > p->next_down->t_down) {
+            //     if (p->next_down == nullptr)
+            //         break;
+            //     p = p->next_down;
+            // }
             double lambda = (t - p->t_down) / (p->next_down->t_down - p->t_down);
             dist = lambda * p->next_down->dist_score + (1 - lambda) * p->dist_score;
             angle = lambda * p->next_down->angle_score + (1 - lambda) * p->angle_score;
@@ -156,8 +159,9 @@ public:
         double angle;
     };
 
-    Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
-        : m_surface(surface)
+    Composer(Options const& options, ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
+        : m_options(options)
+        , m_surface(surface)
         , m_num_paths(num_paths)
         , m_num_particles(num_particles)
         , m_l_turn(0.3)
@@ -460,6 +464,9 @@ public:
         }
     }
 
+    double max_area = -INFINITY;
+    Eigen::Matrix<double, 12, 1> max_quad;
+
     decltype(auto) simulate(
         double dt = 0.05,
         double ksp = 1'000'000.,
@@ -472,7 +479,7 @@ public:
         auto orders = std::vector<std::vector<int>>(m_initial.size());
 
         for (auto&& [j, i] : enumerate(m_winding_order)) {
-            auto simulator = OffSurface(m_surface, m_initial[i]);
+            auto simulator = OffSurface(m_options, m_surface, m_initial[i]);
 
             simulator.ksp() = ksp;
             simulator.kdp() = kdp;
@@ -514,6 +521,52 @@ public:
             score_ends(ls.head->next_down);
             score_ends(ls.rear->prev_down);
         }
+        // std::cout << "begin quadmesh\n";
+        std::ofstream ofs("./tmp.obj");
+        for (auto& ls : up_list) {
+            auto p = ls.head;
+            while (p != ls.rear) {
+                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                    Vec3 p0 = p->point;
+                    Vec3 p1 = p->next_up->point;
+                    Vec3 p2 = p->next_up->next_down->point;
+                    Vec3 p3 = p->next_up->next_down->prev_up->point;
+
+                    double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
+                    if (area > max_area) {
+                        max_area = area;
+                        max_quad.segment<3>(0) = p0;
+                        max_quad.segment<3>(3) = p1;
+                        max_quad.segment<3>(6) = p2;
+                        max_quad.segment<3>(9) = p3;
+                    }
+
+                    ofs << "v " << p0.transpose() << '\n';
+                    ofs << "v " << p1.transpose() << '\n';
+                    ofs << "v " << p2.transpose() << '\n';
+                    ofs << "v " << p3.transpose() << '\n';
+                }
+                p = p->next_up;
+            }
+        }
+
+        std::cout << "max_area: " << max_area << '\n';
+        std::cout << "max_quad: " << max_quad.transpose() << '\n';
+
+        int cnt = 1;
+        for (auto& ls : up_list) {
+            auto p = ls.head;
+            while (p != ls.rear) {
+                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                    ofs << "f " << cnt << " " << cnt + 1 << " " << cnt + 2 << " " << cnt + 3 << std::endl;
+                    cnt += 4;
+                }
+                p = p->next_up;
+            }
+        }
+
+        std::cout << "wrote quadmesh\n";
+        // exit(EXIT_SUCCESS);
 
         auto motion = std::vector<LocalFrame>(2 * m_num_paths * (m_num_particles + 2) - 2);
         auto ct = 0;

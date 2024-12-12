@@ -12,6 +12,19 @@ constexpr float PI = 3.14159265359;
 
 #    define enumerate(v) std::views::zip(std::views::iota(0), v)
 
+struct Options {
+    std::string data_path = "./reference";
+    std::string file_stem = "vase";
+    std::string out_path = "./output";
+    std::string experiment = "reference";
+
+    // If pull_in and push_out then alternate pull_in - push_out
+    bool push_out = true;
+    bool pull_in = false;
+
+    bool bruteforce_mapping = false;
+};
+
 #    ifdef DEBUG_FPE_TRAP
 #        include <fenv.h>
 #        include <math.h>
