@@ -88,11 +88,13 @@ void ParametricSurface::generate_search_grid(int nu, int nv)
 
             m_grid2D[ct] = p;
             m_grid3D[ct] = f(p);
+
+            ct++;
         }
     }
 }
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p) const
+Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
 {
     double cur;
     double mi = (p - m_grid3D[0]).norm();
@@ -107,7 +109,7 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p) const
         }
     }
 
-    return closest_point(p, m_grid2D[id]);
+    return closest_point(p, m_grid2D[id], max_iterations);
 }
 
 Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations) const

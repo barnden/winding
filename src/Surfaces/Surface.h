@@ -35,11 +35,11 @@ public:
 
     void generate_search_grid(int nu, int nv);
 
-    [[nodiscard]] Vec2 closest_point(Vec3 const& p) const;
-    [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, int max_iterations = 1000) const;
+    [[nodiscard]] Vec2 closest_point(Vec3 const& p, size_t max_iterations = 1000) const;
+    [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations = 1000) const;
 
-    std::vector<Vec2> m_grid2D;
-    std::vector<Vec3> m_grid3D;
+    mutable std::vector<Vec2> m_grid2D;
+    mutable std::vector<Vec3> m_grid3D;
 
     double m_uMax;
     double m_uMin;
