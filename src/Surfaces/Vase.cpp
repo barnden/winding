@@ -6,7 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Vase::Vase()
+Vase::Vase(Options const& options)
+    : ParametricSurface(options)
 {
     m_uMin = 0.;
     m_uMax = 2. * PI;

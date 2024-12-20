@@ -6,8 +6,9 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Torus::Torus(double r1, double r2)
-    : m_r1(r1)
+Torus::Torus(Options const& options, double r1, double r2)
+    : ParametricSurface(options)
+    , m_r1(r1)
     , m_r2(r2)
 {
     m_uMin = 0;

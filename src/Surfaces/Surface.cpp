@@ -6,8 +6,9 @@
 #include "Surfaces/Surface.h"
 #include <ranges>
 
-ParametricSurface::ParametricSurface()
-    : m_epsilon(1e-5) {};
+ParametricSurface::ParametricSurface(Options const& options)
+    : m_options(options)
+    , m_epsilon(1e-5) {};
 
 Vec3 ParametricSurface::f_u(Vec2 const& p) const { return nf_u(p); }
 
@@ -116,6 +117,8 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
 {
     Vec2 xk = guess;
 
+    static constexpr auto lambda = 0.1;
+
     for (auto i = 0uz; i < max_iterations; i++) {
         Vec3 fp = f(xk) - p;
         Vec3 fu = f_u(xk);
@@ -127,8 +130,10 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
         Vec2 Jf(fu.dot(fp), fv.dot(fp));
         Vec2 Jg(
             0.,
-            0.//1. / (m_vMax - xk.y()) - 1. / (xk.y() - m_vMin)
-        );
+            lambda * (1. / (m_vMax - xk.y()) - 1. / (xk.y() - m_vMin)));
+
+        if (!m_options.newton_log_barrier)
+            Jg.y() = 0.;
 
         Vec2 J = 2. * Jf + Jg;
 
@@ -139,7 +144,9 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
             fvv.dot(fp) + fv.dot(fv);
 
         Eigen::Matrix2d Hg = Eigen::Matrix2d::Zero();
-        // Hg(1, 1) = 1. / std::pow(xk.y() - m_vMin, 2.) + 1. / std::pow(m_vMax - xk.y(), 2.);
+
+        if (m_options.newton_log_barrier)
+            Hg(1, 1) = lambda * (1. / std::pow(xk.y() - m_vMin, 2.) + 1. / std::pow(m_vMax - xk.y(), 2.));
 
         Eigen::Matrix2d H = 2. * Hf + Hg;
 

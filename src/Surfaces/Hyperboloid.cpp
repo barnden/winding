@@ -6,7 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Hyperboloid::Hyperboloid()
+Hyperboloid::Hyperboloid(Options const& options)
+    : ParametricSurface(options)
 {
     m_uMin = 0.;
     m_uMax = 2. * PI;

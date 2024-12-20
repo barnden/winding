@@ -6,8 +6,9 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Spring::Spring(double r1, double r2, double kh)
-    : m_r1(r1)
+Spring::Spring(Options const& options, double r1, double r2, double kh)
+    : ParametricSurface(options)
+    , m_r1(r1)
     , m_r2(r2)
     , m_kh(kh)
 {
