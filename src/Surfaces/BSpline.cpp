@@ -137,6 +137,10 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
+[[nodiscard]] Vec2 CubicBSpline::closest_point(Vec3 const& p, size_t max_iterations) const {
+    return ParametricSurface::closest_point(p, m_grid2D[m_bvh.closest_point(p)], max_iterations);
+}
+
 Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
 {
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(3, 3 * m_nv * m_nu);
