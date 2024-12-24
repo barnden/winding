@@ -12,7 +12,6 @@
 class CubicBSpline : public ParametricSurface {
     std::vector<std::vector<Vec3>> m_points;
     Eigen::Matrix4d m_basis;
-    BVH m_bvh;
 
     [[nodiscard]] inline std::tuple<double, double, int, int> get_uv(Vec2 const& p) const;
     [[nodiscard]] inline Eigen::RowVector3d get(int v, int u) const;
@@ -24,31 +23,20 @@ public:
     int m_nu;
     int m_nv;
 
-    explicit CubicBSpline(Options const& options)
+    explicit CubicBSpline(std::shared_ptr<Options> const& options)
         : ParametricSurface(options)
     {
         m_basis = 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
-        read(options.data_path + "/" + options.file_stem + ".txt");
-
-        generate_search_grid(1024, 1024);
-        m_bvh = BVH(&m_grid3D, 1024);
+        read(options->data_path + "/" + options->file_stem + ".txt");
     }
 
-    CubicBSpline(Options const& options, int nv, int nu, decltype(m_points)&& data)
-        : ParametricSurface(options)
+    CubicBSpline(std::shared_ptr<Options> const& options, int nv, int nu, decltype(m_points)&& data)
+        : ParametricSurface(options, 0., nu, 2., nv - 1.)
         , m_points(std::move(data))
         , m_nu(nu)
         , m_nv(nv)
     {
         m_basis = 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
-
-        m_uMin = 0.;
-        m_uMax = nu;
-        m_vMin = 2.;
-        m_vMax = nv - 1.;
-
-        generate_search_grid(1024, 1024);
-        m_bvh = BVH(&m_grid3D, 1024);
     }
 
     void read(std::string const& file);
@@ -61,7 +49,6 @@ public:
     [[nodiscard]] Vec3 f_vv(Vec2 const& p) const override;
 
     [[nodiscard]] Eigen::MatrixXd jacobian(Vec2 const& p) const;
-    [[nodiscard]] virtual Vec2 closest_point(Vec3 const& p, size_t max_iterations = 1000) const override;
 
     auto const& points() const { return m_points; }
 

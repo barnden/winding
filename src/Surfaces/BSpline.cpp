@@ -82,7 +82,6 @@ void CubicBSpline::read(std::string const& file)
     for (auto i = 0; i < m_nv; i++) {
         for (auto j = 0; j < m_nu; j++) {
             stream >> m_points[i][j].x() >> m_points[i][j].y() >> m_points[i][j].z();
-            // m_points[i][j + 2 * m_nu] = (m_points[i][j + m_nu] = m_points[i][j]);
         }
     }
 
@@ -135,10 +134,6 @@ void CubicBSpline::read(std::string const& file)
         [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
         [](double v) { return Eigen::RowVector4d(6. * v, 2., 0., 0.); },
         p);
-}
-
-[[nodiscard]] Vec2 CubicBSpline::closest_point(Vec3 const& p, size_t max_iterations) const {
-    return ParametricSurface::closest_point(p, m_grid2D[m_bvh.closest_point(p)], max_iterations);
 }
 
 Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const

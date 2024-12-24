@@ -6,16 +6,10 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Torus::Torus(Options const& options, double r1, double r2)
-    : ParametricSurface(options)
+Torus::Torus(std::shared_ptr<Options> const& options, double r1, double r2)
+    : ParametricSurface(options, 0., 2. * PI, 0., 2. * PI - 0.001)
     , m_r1(r1)
-    , m_r2(r2)
-{
-    m_uMin = 0;
-    m_uMax = 2 * PI;
-    m_vMin = 0;
-    m_vMax = 2 * PI - 0.001;
-}
+    , m_r2(r2) {};
 
 Vec3 Torus::f(Vec2 const& p) const
 {

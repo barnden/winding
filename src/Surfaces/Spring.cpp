@@ -6,17 +6,11 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Spring::Spring(Options const& options, double r1, double r2, double kh)
-    : ParametricSurface(options)
+Spring::Spring(std::shared_ptr<Options> const& options, double r1, double r2, double kh)
+    : ParametricSurface(options, 0., 2. * PI, 0., 4. * PI)
     , m_r1(r1)
     , m_r2(r2)
-    , m_kh(kh)
-{
-    m_uMin = 0.;
-    m_uMax = 2. * PI;
-    m_vMin = 0.;
-    m_vMax = 4. * PI;
-}
+    , m_kh(kh) {};
 
 Vec3 Spring::f(Vec2 const& p) const
 {

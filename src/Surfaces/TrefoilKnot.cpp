@@ -6,14 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-TrefoilKnot::TrefoilKnot(Options const& options)
-    : ParametricSurface(options)
-{
-    m_uMin = 0.;
-    m_uMax = 2. * PI;
-    m_vMin = 0.;
-    m_vMax = 2. * PI - 0.001;
-}
+TrefoilKnot::TrefoilKnot(std::shared_ptr<Options> const& options)
+    : ParametricSurface(options, 0., 2. * PI, 0., 2. * PI - 0.001) {};
 
 Vec3 TrefoilKnot::f(Vec2 const& p) const
 {
