@@ -22,8 +22,8 @@ inline decltype(auto) create_morton_curve(std::vector<Vec3> const* points)
     Vec3 scale = MORTON_DOMAIN * size.cwiseInverse();
 
     for (auto&& [i, point] : enumerate(*points)) {
-        Vec3 const p = point.array() * scale.array();
-        auto const code = Morton::Encode(Morton::Code(p.x()), Morton::Code(p.y()), Morton::Code(p.z()));
+        Eigen::Matrix<Morton::Code, 1, 3> const p = (point.array() * scale.array()).cast<Morton::Code>();
+        auto const code = Morton::Encode(p.x(), p.y(), p.z());
 
         curve.push_back({ code, i });
     }
@@ -78,58 +78,6 @@ double distance(AABB const& volume, Vec3 const& p)
     Vec3 x = p.cwiseMax(volume.min()).cwiseMin(volume.max());
     return (x - p).squaredNorm();
 }
-
-// [[gnu::hot]] Vec3 BVH::closest_point(Vec3 const& x) const
-// {
-//     auto nodes = std::deque<size_t> { 0 };
-
-//     auto d_min = std::numeric_limits<double>::infinity();
-//     auto closest_point = -1uz;
-
-//     while (!nodes.empty()) {
-//         auto const& node = m_lbvh[nodes.front()];
-//         nodes.pop_front();
-
-//         if (auto const& data = node.data) {
-//             auto const d_leaf = distance(node.volume, x);
-
-//             if (d_leaf > d_min)
-//                 continue;
-
-//             for (auto&& [i, pidx] : enumerate(*data)) {
-//                 auto const& p = m_points[pidx];
-//                 auto const d_point = (p - x).squaredNorm();
-
-//                 if (d_point < d_min) {
-//                     d_min = d_point;
-//                     closest_point = pidx;
-//                 }
-//             }
-
-//             continue;
-//         }
-
-//         auto const& left = m_lbvh[node.left];
-//         auto const& right = m_lbvh[node.right];
-
-//         auto const d_left = distance(left.volume, x);
-//         auto const d_right = distance(right.volume, x);
-
-//         if (d_left < d_right) {
-//             nodes.push_back(node.left);
-
-//             if (d_right < d_min)
-//                 nodes.push_back(node.right);
-//         } else {
-//             nodes.push_back(node.right);
-
-//             if (d_left < d_min)
-//                 nodes.push_back(node.left);
-//         }
-//     }
-
-//     return m_points[closest_point];
-// }
 
 [[gnu::hot]] size_t BVH::closest_point(Vec3 const& x) const
 {

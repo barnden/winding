@@ -21,7 +21,7 @@ Code Encode(uint32_t x, uint32_t y, uint32_t z)
     return _pdep_u64(x, MORTON_MASK) | _pdep_u64(y, MORTON_MASK << 1) | _pdep_u64(z, MORTON_MASK << 2);
 }
 #else
-Morton::Code _expand(uint64_t n)
+Code _expand(uint64_t n)
 {
     n = (n | n << 32) & 0x001f00000000ffff;
     n = (n | n << 16) & 0x001f0000ff0000ff;
@@ -32,7 +32,7 @@ Morton::Code _expand(uint64_t n)
     return n;
 }
 
-Morton::Code Encode(uint64_t x, uint64_t y, uint64_t z)
+Code Encode(uint64_t x, uint64_t y, uint64_t z)
 {
     return (_expand(x) << 2) | (_expand(y) << 1) | (_expand(z) << 0);
 }
