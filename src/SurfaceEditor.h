@@ -16,10 +16,10 @@ class SurfaceEditor {
     int m_num_paths;
     int m_num_particles;
     int m_step;
-    Options const& m_options;
+    std::shared_ptr<Options> m_options;
 
 public:
-    SurfaceEditor(CubicBSpline& reference_surface, Options const& options, double num_revolutions, int num_paths, int num_particles)
+    SurfaceEditor(CubicBSpline& reference_surface, std::shared_ptr<Options> const& options, double num_revolutions, int num_paths, int num_particles)
         : m_surface(reference_surface)
         , m_num_revolutions(num_revolutions)
         , m_num_paths(num_paths)

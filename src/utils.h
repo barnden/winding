@@ -19,10 +19,10 @@ struct Options {
     std::string experiment = "reference";
 
     // If pull_in and push_out then alternate pull_in - push_out
-    bool push_out = true;
+    bool push_out = false;
     bool pull_in = false;
 
-    bool bruteforce_mapping = false;
+    bool use_bvh = false;
 };
 
 #    ifdef DEBUG_FPE_TRAP

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #include "Surfaces/Surface.h"
+#include <iostream>
 #include <ranges>
 
 ParametricSurface::ParametricSurface(Options const& options)

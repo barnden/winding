@@ -1,15 +1,16 @@
 #pragma once
 #ifndef SIMULATOR_H
-#define SIMULATOR_H
+#    define SIMULATOR_H
 
-#include "Surfaces/Surface.h"
-#include "utils.h"
+#    include "Surfaces/Surface.h"
+#    include "utils.h"
 
 class Simulator {
     int m_size;
-    ParametricSurface const& m_surface;
 
 protected:
+    ParametricSurface const& m_surface;
+
     double m_ksp;
     double m_kdp;
     double m_kpf;
@@ -41,7 +42,7 @@ public:
 };
 
 class OffSurface : public Simulator {
-    Options m_options;
+    std::shared_ptr<Options> const& m_options;
     std::vector<Vec2> m_position;
     std::vector<Vec2> m_velocity;
 
@@ -50,7 +51,7 @@ class OffSurface : public Simulator {
     std::vector<int> m_r;
 
 public:
-    OffSurface(Options const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path);
+    OffSurface(std::shared_ptr<Options> const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path);
     virtual void step() override;
     virtual bool stop() override;
 

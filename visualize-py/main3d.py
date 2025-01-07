@@ -33,7 +33,7 @@ class Surface:
             np.linspace(self.v_min, self.v_max, N),
         )
 
-        return self.f(*parametric_space)
+        return self.f(*parametric_space), self.normal(*parametric_space)
 
     def winding_path(self):
         with open(self.winding_path_file) as f:
@@ -230,15 +230,16 @@ class BSpline(Surface):
         ))
 
         mesh = np.zeros((3, N, N))
+        normals = np.zeros((3, N, N))
 
         for i in range(N):
             for j in range(N):
                 mesh[:, i, j] = self.f(*parametric_space[:, i, j])
+                normals[:, i, j] = self.normal(*parametric_space[:, i, j])
 
-        return mesh
+        return mesh, normals
 
 class Visualization(HasTraits):
-    mesh = Range(0, 11, 0)
     options = List(editor=CheckListEditor(values=["Show Control Mesh"]))
     path_type = Enum('None', 'Distance', 'Path Distance', 'Angles')
     
@@ -258,20 +259,24 @@ class Visualization(HasTraits):
         )
 
     def __init__(self, surfaces):
+        self.add_trait("mesh", Range(0, len(surfaces) - 1, 0))
         HasTraits.__init__(self)
 
         self.meshes = []
         self.control_meshes = []
         self.paths = []
 
-        self.initialize()
+        self.initialize(surfaces)
 
-    def initialize(self):
+    def initialize(self, surfaces):
         cmap = plt.get_cmap('viridis')
         cmaplist = np.array([cmap(i) for i in range(cmap.N)]) * 255
+        color_range = [{"vmin": 0.0, "vmax": None}, {"vmin": None, "vmax": None}, {"vmin": 0.3, "vmax": 0.4}]
 
+        ct = 0
         for surface in surfaces:
-            mesh = mlab.mesh(*surface.generate_mesh(128), color=(0.6, 0.65, 0.8), figure=self.scene.mayavi_scene)
+            _mesh, _normals = surface.generate_mesh(128)
+            mesh = mlab.mesh(*_mesh, color=(.6, .65, .8), figure=self.scene.mayavi_scene)
             self.meshes.append(mesh)
 
             if surface.winding_path_file is not None:
@@ -280,7 +285,7 @@ class Visualization(HasTraits):
                 # 4: dist to surface, 5: path dist, 6: angles
                 paths = []
                 for j in range(4, 7):
-                    winding_plot = mlab.plot3d(*np.array(path)[:, 1:4].T, abs(np.array(path)[:, j].T), tube_radius=0.003)
+                    winding_plot = mlab.plot3d(*np.array(path)[:, 1:4].T, abs(np.array(path)[:, j].T), tube_radius=0.003, **color_range[j - 4])
                     winding_plot.module_manager.scalar_lut_manager.lut.table = cmaplist
 
                     paths.append(winding_plot)
@@ -301,6 +306,15 @@ class Visualization(HasTraits):
                 for j in range(J):
                     line = mlab.plot3d(surface.points[:, j, 0], surface.points[:, j, 1], surface.points[:, j, 2], tube_radius=0.003, figure=self.scene.mayavi_scene)
                     control_mesh.append(line)
+
+                with open(f"../build/altoutdeform-max_quad-{ct}.txt") as f:
+                    verts = np.array([*map(lambda x: [*map(float, x.strip().split(','))], f.readlines())])
+                    quad = mlab.triangular_mesh(*verts.T, [[3, 1, 0], [3, 2, 1]], color=(1., 0., 0.))
+                    control_mesh.append(quad)
+
+            ct += 1
+                # quad = np.array([[-0.50636, -0.152212, -0.125947], [-0.444435, 0.0993786, 0.0945401],  [-0.40025,  0.295414, -0.145504], [-0.595699, 0.0791206, -0.338357]])
+        # mlab.plot3d(*quad.T, tube_radius=0.003, color=(1., 0., 0.), figure=self.scene.mayavi_scene)
 
             self.control_meshes.append(control_mesh)
 
@@ -339,7 +353,23 @@ class Visualization(HasTraits):
         self.paths[int(self.mesh)][idx].visible = True
 
 if __name__ == "__main__":
+    from sys import argv
+
     root = "../build/"
-    surfaces = [BSpline(f"{root}/path-{x}.txt", f"{root}/spline-step-{x}.txt") for x in range(15)]
+    froot = ""
+    if len(argv[1:]) == 1:
+        root = argv[1]
+
+    if len(argv[1:]) >= 2:
+        root = argv[1]
+        froot = argv[2] + '-'
+
+    N=15
+
+    if len(argv[1:]) >= 3:
+        N = int(argv[3])
+
+    surfaces = [BSpline(f"{root}/{froot}path-{x}.txt", f"{root}/{froot}spline-step-{x}.txt") for x in range(N)]
+    # surfaces = [BSpline(None, f"{root}/ideformed-spline-step-0.txt")]
     viz = Visualization(surfaces)
     viz.configure_traits()
