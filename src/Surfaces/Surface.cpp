@@ -132,7 +132,7 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
             0.,
             lambda * (1. / (m_vMax - xk.y()) - 1. / (xk.y() - m_vMin)));
 
-        if (!m_options.newton_log_barrier)
+        // if (!m_options.newton_log_barrier)
             Jg.y() = 0.;
 
         Vec2 J = 2. * Jf + Jg;
@@ -145,7 +145,7 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
 
         Eigen::Matrix2d Hg = Eigen::Matrix2d::Zero();
 
-        if (m_options.newton_log_barrier)
+        // if (m_options.newton_log_barrier)
             Hg(1, 1) = lambda * (1. / std::pow(xk.y() - m_vMin, 2.) + 1. / std::pow(m_vMax - xk.y(), 2.));
 
         Eigen::Matrix2d H = 2. * Hf + Hg;

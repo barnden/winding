@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
         options.experiment = std::string(argv[4]);
 
     {
-        auto create_if_not_exists = [](auto const& path) {
+        auto create_if_not_exists = [](auto const& path) {k
             if (!fs::is_directory(path) || fs::exists(path))
                 fs::create_directory(path);
         };
@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
         create_if_not_exists(options.out_path + "/" + options.experiment + "/path");
         create_if_not_exists(options.out_path + "/" + options.experiment + "/max_quad");
 
-        fs::copy_file(options.data_path + "/" + options.file_stem + ".txt", options.out_path + "/" + options.experiment + "/spline/step-0.txt");
+        fs::copy_file(options.data_path + "/" + options.file_stem + ".txt", options.out_path + "/" + options.experiment + "/spline/step-0.txt", fs::copy_options::overwrite_existing);
     }
 
     auto num_revolutions = .6;

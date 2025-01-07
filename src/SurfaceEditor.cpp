@@ -157,7 +157,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
     }
     ostream.close();
 
-    m_surface = CubicBSpline(m_surface.m_nv, m_surface.m_nu, std::move(augmented_control_points));
+    new (&m_surface) CubicBSpline(m_options, m_surface.m_nv, m_surface.m_nu, std::move(augmented_control_points));
     m_step++;
 }
 
