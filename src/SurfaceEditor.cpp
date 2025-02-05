@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,7 +21,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
     std::cout << "[Editor] Begin step " << (m_step + 1) << '\n';
 
     auto composer = Composer(m_surface, m_num_revolutions, m_num_paths, m_num_particles);
-    auto path = composer.simulate(dt, ksp, kdp, eps);
+    auto path = composer.simulate(dt, ksp, kdp, eps, m_step);
     auto max_quad = composer.max_quad;
     auto in_surface = std::vector<std::pair<Vec2, Vec3>> {};
     auto off_surface = std::vector<std::pair<Vec2, Vec3>> {};

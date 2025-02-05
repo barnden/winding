@@ -2,10 +2,12 @@
 #ifndef COMPOSER_H
 #    define COMPOSER_H
 
+#    include "Config.h"
 #    include "Simulator.h"
 #    include "Surfaces/Surface.h"
 #    include "utils.h"
 
+#    include <format>
 #    include <fstream>
 #    include <iostream>
 #    include <vector>
@@ -445,7 +447,8 @@ public:
         double dt = 0.05,
         double ksp = 1'000'000.,
         double kdp = 200.,
-        double eps = 0.001)
+        double eps = 0.001,
+        int step = 0)
     {
         generate_winding_order();
 
@@ -495,52 +498,52 @@ public:
             score_ends(ls.head->next_down);
             score_ends(ls.rear->prev_down);
         }
-        // std::cout << "begin quadmesh\n";
-        std::ofstream ofs("./tmp.obj");
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    Vec3 p0 = p->point;
-                    Vec3 p1 = p->next_up->point;
-                    Vec3 p2 = p->next_up->next_down->point;
-                    Vec3 p3 = p->next_up->next_down->prev_up->point;
 
-                    double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
-                    if (area > max_area) {
-                        max_area = area;
-                        max_quad.segment<3>(0) = p0;
-                        max_quad.segment<3>(3) = p1;
-                        max_quad.segment<3>(6) = p2;
-                        max_quad.segment<3>(9) = p3;
+        {
+            auto outpath = std::format("{}/{}/mesh/step-{}.obj", Config::out_directory, Config::experiment, step);
+            auto ostream = std::ofstream(outpath);
+            for (auto& ls : up_list) {
+                auto p = ls.head;
+                while (p != ls.rear) {
+                    if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                        Vec3 p0 = p->point;
+                        Vec3 p1 = p->next_up->point;
+                        Vec3 p2 = p->next_up->next_down->point;
+                        Vec3 p3 = p->next_up->next_down->prev_up->point;
+
+                        double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
+                        if (area > max_area) {
+                            max_area = area;
+                            max_quad.segment<3>(0) = p0;
+                            max_quad.segment<3>(3) = p1;
+                            max_quad.segment<3>(6) = p2;
+                            max_quad.segment<3>(9) = p3;
+                        }
+
+                        ostream << "v " << p0.transpose() << '\n'
+                                << "v " << p1.transpose() << '\n'
+                                << "v " << p2.transpose() << '\n'
+                                << "v " << p3.transpose() << '\n';
                     }
-
-                    ofs << "v " << p0.transpose() << '\n';
-                    ofs << "v " << p1.transpose() << '\n';
-                    ofs << "v " << p2.transpose() << '\n';
-                    ofs << "v " << p3.transpose() << '\n';
+                    p = p->next_up;
                 }
-                p = p->next_up;
+            }
+
+            std::cout << "max_area: " << max_area << '\n';
+            std::cout << "max_quad: " << max_quad.transpose() << '\n';
+
+            int cnt = 1;
+            for (auto& ls : up_list) {
+                auto p = ls.head;
+                while (p != ls.rear) {
+                    if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                        ostream << "f " << cnt << " " << cnt + 1 << " " << cnt + 2 << " " << cnt + 3 << std::endl;
+                        cnt += 4;
+                    }
+                    p = p->next_up;
+                }
             }
         }
-
-        std::cout << "max_area: " << max_area << '\n';
-        std::cout << "max_quad: " << max_quad.transpose() << '\n';
-
-        int cnt = 1;
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    ofs << "f " << cnt << " " << cnt + 1 << " " << cnt + 2 << " " << cnt + 3 << std::endl;
-                    cnt += 4;
-                }
-                p = p->next_up;
-            }
-        }
-
-        std::cout << "wrote quadmesh\n";
-        // exit(EXIT_SUCCESS);
 
         auto motion = std::vector<LocalFrame>(2 * m_num_paths * (m_num_particles + 2) - 2);
         auto ct = 0;

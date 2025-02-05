@@ -51,7 +51,7 @@ void Config::argparse(int argc, char* argv[])
 
     fs::create_directories(std::format("{}/{}", out_directory, experiment));
 
-    for (auto&& directory : { "spline"sv, "path"sv, "max_quad"sv }) {
+    for (auto&& directory : { "spline"sv, "path"sv, "max_quad"sv, "mesh"sv }) {
         auto path = std::format("{}/{}/{}", out_directory, experiment, directory);
         fs::create_directory(path);
     }
