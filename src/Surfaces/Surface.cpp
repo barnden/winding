@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #include "Surfaces/Surface.h"
-#include <ranges>
+#include "Config.h"
+
 #include <iostream>
+#include <ranges>
 
-ParametricSurface::ParametricSurface(std::shared_ptr<Options> const& options, double epsilon)
-    : m_options(options)
-    , m_epsilon(epsilon) {};
+ParametricSurface::ParametricSurface(double epsilon)
+    : m_epsilon(epsilon) { };
 
-ParametricSurface::ParametricSurface(std::shared_ptr<Options> const& options, double u_min, double u_max, double v_min, double v_max, double epsilon)
-    : m_options(options)
-    , m_uMin(u_min)
+ParametricSurface::ParametricSurface(double u_min, double u_max, double v_min, double v_max, double epsilon)
+    : m_uMin(u_min)
     , m_uMax(u_max)
     , m_vMin(v_min)
     , m_vMax(v_max)
-    , m_epsilon(epsilon) {};
+    , m_epsilon(epsilon) { };
 
 Vec3 ParametricSurface::f_u(Vec2 const& p) const { return nf_u(p); }
 

@@ -6,8 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Hyperboloid::Hyperboloid(std::shared_ptr<Options> const& options)
-    : ParametricSurface(options, 0., 2. * PI, 0., 1.) {};
+Hyperboloid::Hyperboloid()
+    : ParametricSurface(0., 2. * PI, 0., 1.) {};
 
 Vec3 Hyperboloid::f(Vec2 const& p) const
 {

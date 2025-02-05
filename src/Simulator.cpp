@@ -1,9 +1,10 @@
 #include "Simulator.h"
+#include "Config.h"
 
+#include <Eigen/Sparse>
 #include <iostream>
 #include <ranges>
 
-#include <Eigen/Sparse>
 using MatrixSd = Eigen::SparseMatrix<double>;
 using Vector = Eigen::VectorXd;
 using Triplet = Eigen::Triplet<double>;
@@ -49,9 +50,8 @@ void Simulator::simulate(int num_iterations)
     std::cout << i << " iterations simulated.\n";
 }
 
-OffSurface::OffSurface(Options const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path)
+OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path)
     : Simulator(f, init_path)
-    , m_options(options)
 {
     m_position = m_position_initial;
     m_velocity = decltype(m_velocity)(size(), Vec2::Zero());
@@ -213,7 +213,7 @@ void OffSurface::mapping()
         for (int i = 1; i < m_r[cl]; i++) {
             Vec3 world = ((double)i / len) * p1 + ((double)(len - i) / len) * p0;
 
-            if (m_options.bruteforce_mapping) {
+            if (Config::use_bvh) {
                 m_position[cl + i] = surface().closest_point(world);
             } else {
                 Vec2 guess = m_position[cl + i];

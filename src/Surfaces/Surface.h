@@ -6,7 +6,6 @@
 #pragma once
 
 #include <Eigen/Dense>
-#include <memory>
 #include <vector>
 
 #include "BVH/BVH.h"
@@ -17,8 +16,6 @@ class ParametricSurface {
     void generate_search_grid(int nu, int nv) const;
 
 protected:
-    std::shared_ptr<Options> m_options;
-
     double m_uMin;
     double m_uMax;
     double m_vMin;
@@ -28,10 +25,11 @@ protected:
 
     mutable std::vector<Vec2> m_grid2D;
     mutable std::vector<Vec3> m_grid3D;
+
 public:
     ParametricSurface() = delete;
-    ParametricSurface(std::shared_ptr<Options> const& options, double epsilon = 1e-5);
-    ParametricSurface(std::shared_ptr<Options> const& options, double u_min, double u_max, double v_min, double v_max, double epsilon = 1e-5);
+    ParametricSurface(double epsilon = 1e-5);
+    ParametricSurface(double u_min, double u_max, double v_min, double v_max, double epsilon = 1e-5);
 
     [[nodiscard]] virtual Vec3 f(Vec2 const& p) const = 0;
     [[nodiscard]] virtual Vec3 f_u(Vec2 const& p) const;
@@ -60,7 +58,7 @@ public:
 
 class Hyperboloid : public ParametricSurface {
 public:
-    Hyperboloid(std::shared_ptr<Options> const&);
+    Hyperboloid();
 
     virtual Vec3 f(Vec2 const& p) const final;
     virtual Vec3 f_u(Vec2 const& p) const final;
@@ -75,7 +73,7 @@ class Torus : public ParametricSurface {
     double m_r2;
 
 public:
-    Torus(std::shared_ptr<Options> const&, double r1 = 1., double r2 = 0.3);
+    Torus(double r1 = 1., double r2 = 0.3);
 
     virtual Vec3 f(Vec2 const& p) const final;
     virtual Vec3 f_u(Vec2 const& p) const final;
@@ -91,7 +89,7 @@ class Spring : public ParametricSurface {
     double m_kh;
 
 public:
-    Spring(std::shared_ptr<Options> const&, double r1 = 1., double r2 = 0.3, double kh = 0.15);
+    Spring(double r1 = 1., double r2 = 0.3, double kh = 0.15);
 
     virtual Vec3 f(Vec2 const& p) const final;
     virtual Vec3 f_u(Vec2 const& p) const final;
@@ -103,7 +101,7 @@ public:
 
 class Vase : public ParametricSurface {
 public:
-    Vase(std::shared_ptr<Options> const& options);
+    Vase();
 
     virtual Vec3 f(Vec2 const& p) const final;
     virtual Vec3 f_u(Vec2 const& p) const final;
@@ -115,6 +113,6 @@ public:
 
 class TrefoilKnot : public ParametricSurface {
 public:
-    TrefoilKnot(std::shared_ptr<Options> const& options);
+    TrefoilKnot();
     virtual Vec3 f(Vec2 const& p) const final;
 };

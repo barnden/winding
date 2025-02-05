@@ -6,8 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-TrefoilKnot::TrefoilKnot(std::shared_ptr<Options> const& options)
-    : ParametricSurface(options, 0., 2. * PI, 0., 2. * PI - 0.001) {};
+TrefoilKnot::TrefoilKnot()
+    : ParametricSurface(0., 2. * PI, 0., 2. * PI - 0.001) {};
 
 Vec3 TrefoilKnot::f(Vec2 const& p) const
 {

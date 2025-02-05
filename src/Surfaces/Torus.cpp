@@ -6,8 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Torus::Torus(std::shared_ptr<Options> const& options, double r1, double r2)
-    : ParametricSurface(options, 0., 2. * PI, 0., 2. * PI - 0.001)
+Torus::Torus(double r1, double r2)
+    : ParametricSurface(0., 2. * PI, 0., 2. * PI - 0.001)
     , m_r1(r1)
     , m_r2(r2) {};
 

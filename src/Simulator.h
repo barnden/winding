@@ -41,7 +41,6 @@ public:
 };
 
 class OffSurface : public Simulator {
-    Options m_options;
     std::vector<Vec2> m_position;
     std::vector<Vec2> m_velocity;
 
@@ -50,7 +49,7 @@ class OffSurface : public Simulator {
     std::vector<int> m_r;
 
 public:
-    OffSurface(Options const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path);
+    OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path);
     virtual void step() override;
     virtual bool stop() override;
 

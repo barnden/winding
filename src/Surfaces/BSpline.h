@@ -8,10 +8,10 @@
 #include "BVH/BVH.h"
 #include "Surfaces/Surface.h"
 #include "utils.h"
+#include "Config.h"
 
 class CubicBSpline : public ParametricSurface {
     std::vector<std::vector<Vec3>> m_points;
-    Eigen::Matrix4d m_basis;
 
     [[nodiscard]] inline std::tuple<double, double, int, int> get_uv(Vec2 const& p) const;
     [[nodiscard]] inline Eigen::RowVector3d get(int v, int u) const;
@@ -23,21 +23,24 @@ public:
     int m_nu;
     int m_nv;
 
-    explicit CubicBSpline(std::shared_ptr<Options> const& options)
-        : ParametricSurface(options)
+    static auto basis() -> Eigen::Matrix4d
     {
-        m_basis = 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
-        read(options->data_path + "/" + options->file_stem + ".txt");
+        return 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
     }
 
-    CubicBSpline(std::shared_ptr<Options> const& options, int nv, int nu, decltype(m_points)&& data)
-        : ParametricSurface(options, 0., nu, 2., nv - 1.)
+    explicit CubicBSpline()
+        : ParametricSurface(1e-5)
+    {
+        auto file = std::format("{}/{}.txt", Config::data_directory, Config::stem);
+        read(file);
+    }
+
+    CubicBSpline(int nv, int nu, decltype(m_points)&& data)
+        : ParametricSurface(0., nu, 2., nv - 1.)
         , m_points(std::move(data))
         , m_nu(nu)
         , m_nv(nv)
-    {
-        m_basis = 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
-    }
+    {}
 
     void read(std::string const& file);
 

@@ -47,8 +47,8 @@ template <typename UFunc, typename FFunc>
 {
     auto [u, v, iu, iv] = get_uv(p);
 
-    Eigen::RowVector4d U = get_u(u) * m_basis;
-    Eigen::RowVector4d V = get_v(v) * m_basis;
+    Eigen::RowVector4d U = get_u(u) * basis();
+    Eigen::RowVector4d V = get_v(v) * basis();
 
     // clang-format off
     Eigen::MatrixXd P = (Eigen::MatrixXd(4, 3) <<
@@ -149,8 +149,8 @@ Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
     };
     auto const [u, v, iu, iv] = get_uv(p);
 
-    Eigen::RowVector4d U = Eigen::RowVector4d(u * u * u, u * u, u, 1.) * m_basis;
-    Eigen::RowVector4d V = Eigen::RowVector4d(v * v * v, v * v, v, 1.) * m_basis;
+    Eigen::RowVector4d U = Eigen::RowVector4d(u * u * u, u * u, u, 1.) * basis();
+    Eigen::RowVector4d V = Eigen::RowVector4d(v * v * v, v * v, v, 1.) * basis();
 
     for (auto l = 0; l < 4; l++)
         for (auto m = 0; m < 4; m++)

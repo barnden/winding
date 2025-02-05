@@ -6,8 +6,8 @@
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
-Vase::Vase(std::shared_ptr<Options> const& options)
-    : ParametricSurface(options, 0., 2. * PI, -1., 1.) {};
+Vase::Vase()
+    : ParametricSurface(0., 2. * PI, -1., 1.) {};
 
 Vec3 Vase::f(Vec2 const& p) const
 {

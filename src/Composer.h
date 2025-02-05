@@ -4,6 +4,8 @@
 
 #    include "Simulator.h"
 #    include "Surfaces/Surface.h"
+#    include "utils.h"
+
 #    include <fstream>
 #    include <iostream>
 #    include <vector>
@@ -12,13 +14,9 @@
 // #define SPEED_DEFINED_BY_LENGTH
 #    define ANGLE_SPEED_CONST 2.0
 
-#    include "utils.h"
-
 class Composer {
     std::vector<std::vector<Vec2>> m_initial;
     std::vector<int> m_winding_order;
-
-    Options const& m_options;
     ParametricSurface const& m_surface;
 
     int m_num_paths;
@@ -80,18 +78,6 @@ class Composer {
         {
             IntersectionNode* p = head->next_up;
 
-            // if (p->next_up == nullptr) {
-            //     dist = p->dist_score;
-            //     angle = p->angle_score;
-
-            //     return;
-            // }
-
-            // while (p->next_up->next_up != rear && t > p->next_up->t_up) {
-            //     if (p->next_up == nullptr)
-            //         break;
-            //     p = p->next_up;
-            // }
             double lambda = (t - p->t_up) / (p->next_up->t_up - p->t_up);
             dist = lambda * p->next_up->dist_score + (1 - lambda) * p->dist_score;
             angle = lambda * p->next_up->angle_score + (1 - lambda) * p->angle_score;
@@ -127,17 +113,6 @@ class Composer {
         {
             IntersectionNode* p = head->next_down;
 
-            // if (p->next_down == nullptr) {
-            //     dist = p->dist_score;
-            //     angle = p->angle_score;
-
-            //     return;
-            // }
-            // while (p->next_down->next_down != rear && t > p->next_down->t_down) {
-            //     if (p->next_down == nullptr)
-            //         break;
-            //     p = p->next_down;
-            // }
             double lambda = (t - p->t_down) / (p->next_down->t_down - p->t_down);
             dist = lambda * p->next_down->dist_score + (1 - lambda) * p->dist_score;
             angle = lambda * p->next_down->angle_score + (1 - lambda) * p->angle_score;
@@ -159,23 +134,22 @@ public:
         double angle;
     };
 
-    Composer(Options const& options, ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
-        : m_options(options)
-        , m_surface(surface)
+    Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
+        : m_surface(surface)
         , m_num_paths(num_paths)
         , m_num_particles(num_particles)
         , m_l_turn(0.3)
     {
-        auto angle = (surface.m_vMax - surface.m_vMin) / (surface.m_uMax - surface.m_uMin) / num_revolutions;
-        auto du = (surface.m_uMax - surface.m_uMin) / num_paths;
-        auto ddv = (surface.m_vMax - surface.m_vMin) / (num_particles + 1);
+        auto angle = (surface.v_max() - surface.v_min()) / (surface.u_max() - surface.u_min()) / num_revolutions;
+        auto du = (surface.u_max() - surface.u_min()) / num_paths;
+        auto ddv = (surface.v_max() - surface.v_min()) / (num_particles + 1);
         auto ddu = ddv / angle;
 
         m_initial = std::vector<std::vector<Vec2>>(2 * num_paths, std::vector<Vec2>(num_particles));
 
         for (auto i = 0; i < num_paths; i++) {
-            Vec2 p(surface.m_uMin + i * du, surface.m_vMin);
-            Vec2 q(surface.m_uMin + i * du, surface.m_vMin);
+            Vec2 p(surface.u_min() + i * du, surface.v_min());
+            Vec2 q(surface.u_min() + i * du, surface.v_min());
 
             Vec3 cur = surface.f(p) + SF_OFF * surface.normal(p);
 
@@ -300,7 +274,7 @@ public:
         double& t_up,
         double& t_down)
     {
-        double u = (m_surface.m_uMax - m_surface.m_uMin);
+        double u = (m_surface.u_max() - m_surface.u_min());
 
         while (up1.x() - down1.x() > (u / 2.)) {
             up1.x() -= u;
@@ -479,7 +453,7 @@ public:
         auto orders = std::vector<std::vector<int>>(m_initial.size());
 
         for (auto&& [j, i] : enumerate(m_winding_order)) {
-            auto simulator = OffSurface(m_options, m_surface, m_initial[i]);
+            auto simulator = OffSurface(m_surface, m_initial[i]);
 
             simulator.ksp() = ksp;
             simulator.kdp() = kdp;
