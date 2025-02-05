@@ -1,0 +1,19 @@
+#pragma once
+
+#include "utils.h"
+#include <string_view>
+
+namespace Config {
+    extern std::string_view data_directory;
+    extern std::string_view out_directory;
+    extern std::string_view experiment;
+    extern std::string_view stem;
+
+    extern bool push_out;
+    extern bool pull_in;
+    extern bool alternate_push_pull;
+
+    extern bool use_bvh;
+
+    void argparse(int argc, char* argv[]);
+};
