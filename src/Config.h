@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
 #pragma once
 
 #include "utils.h"
