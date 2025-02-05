@@ -12,13 +12,18 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 #include "Config.h"
 #include "SurfaceEditor.h"
 
+namespace fs = std::filesystem;
+
 void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
 {
     std::cout << "[Editor] Begin step " << (m_step + 1) << '\n';
+
+    fs::copy_file(std::format("{}/{}.txt", Config::data_directory, Config::stem), std::format("{}/{}/spline/step-0.txt", Config::out_directory, Config::experiment), fs::copy_options::overwrite_existing);
 
     auto composer = Composer(m_surface, m_num_revolutions, m_num_paths, m_num_particles);
     auto path = composer.simulate(dt, ksp, kdp, eps, m_step);
