@@ -6,6 +6,7 @@
 #    include "Surfaces/Surface.h"
 #    include <fstream>
 #    include <iostream>
+#    include <numeric>
 #    include <vector>
 
 #    define SF_OFF 0.001
@@ -18,7 +19,7 @@ class Composer {
     std::vector<std::vector<Vec2>> m_initial;
     std::vector<int> m_winding_order;
 
-    Options const& m_options;
+    std::shared_ptr<Options> m_options;
     ParametricSurface const& m_surface;
 
     int m_num_paths;
@@ -79,19 +80,6 @@ class Composer {
         void interpolate(double t, double& dist, double& angle) const
         {
             IntersectionNode* p = head->next_up;
-
-            // if (p->next_up == nullptr) {
-            //     dist = p->dist_score;
-            //     angle = p->angle_score;
-
-            //     return;
-            // }
-
-            // while (p->next_up->next_up != rear && t > p->next_up->t_up) {
-            //     if (p->next_up == nullptr)
-            //         break;
-            //     p = p->next_up;
-            // }
             double lambda = (t - p->t_up) / (p->next_up->t_up - p->t_up);
             dist = lambda * p->next_up->dist_score + (1 - lambda) * p->dist_score;
             angle = lambda * p->next_up->angle_score + (1 - lambda) * p->angle_score;
@@ -148,6 +136,7 @@ public:
     struct LocalFrame {
         Vec3 position;
         Vec3 normal;
+        Vec3 projected;
         Vec3 direction;
         Vec2 shadow;
 
@@ -159,23 +148,23 @@ public:
         double angle;
     };
 
-    Composer(Options const& options, ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
+    Composer(std::shared_ptr<Options> const& options, ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
         : m_options(options)
         , m_surface(surface)
         , m_num_paths(num_paths)
         , m_num_particles(num_particles)
         , m_l_turn(0.3)
     {
-        auto angle = (surface.m_vMax - surface.m_vMin) / (surface.m_uMax - surface.m_uMin) / num_revolutions;
-        auto du = (surface.m_uMax - surface.m_uMin) / num_paths;
-        auto ddv = (surface.m_vMax - surface.m_vMin) / (num_particles + 1);
+        auto angle = (surface.v_max() - surface.v_min()) / (surface.u_max() - surface.u_min()) / num_revolutions;
+        auto du = (surface.u_max() - surface.u_min()) / num_paths;
+        auto ddv = (surface.v_max() - surface.v_min()) / (num_particles + 1);
         auto ddu = ddv / angle;
 
         m_initial = std::vector<std::vector<Vec2>>(2 * num_paths, std::vector<Vec2>(num_particles));
 
         for (auto i = 0; i < num_paths; i++) {
-            Vec2 p(surface.m_uMin + i * du, surface.m_vMin);
-            Vec2 q(surface.m_uMin + i * du, surface.m_vMin);
+            Vec2 p(surface.u_min() + i * du, surface.v_min());
+            Vec2 q(surface.u_min() + i * du, surface.v_min());
 
             Vec3 cur = surface.f(p) + SF_OFF * surface.normal(p);
 
@@ -190,205 +179,16 @@ public:
         }
     }
 
-    void generate_winding_order()
-    {
-        OrderNode* nodes = new OrderNode[m_initial.size()];
-        OrderNode* z_pos = nodes;
-        OrderNode* z_neg = nodes + 1;
-        OrderNode* min_p = nodes;
-
-        z_pos->prev = z_pos;
-        z_neg->prev = z_neg;
-        z_pos->next = z_pos;
-        z_neg->next = z_neg;
-
-        nodes[0].path = 0;
-        nodes[1].path = 1;
-        nodes[0].u = fmod(m_initial[0][0].x(), 2. * PI);
-
-        for (auto i = 2uz; i < m_initial.size(); i++) {
-            OrderNode& cur = nodes[i];
-            cur.path = i;
-            cur.u = fmod(m_initial[i][0].x(), 2. * PI);
-
-            if (cur.u < 0.)
-                cur.u += 2. * PI;
-
-            if (i % 2 == 0) {
-                cur.next = z_pos->next;
-                cur.prev = z_pos;
-                z_pos->next = nodes + i;
-                cur.next->prev = nodes + i;
-
-                if (min_p->u > cur.u)
-                    min_p = nodes + i;
-            } else {
-                cur.next = z_neg->next;
-                cur.prev = z_neg;
-                z_neg->next = nodes + i;
-                cur.next->prev = nodes + i;
-            }
-        }
-
-        z_pos = min_p;
-        bool next_pos = true;
-        OrderNode* next = nodes;
-        double nextu;
-
-        while (next) {
-            m_winding_order.push_back(next->path);
-            nextu = fmod(m_initial[next->path].back().x() - 0.1, 2. * PI);
-
-            if (nextu < 0.)
-                nextu += 2. * PI;
-
-            if (next_pos) {
-                next_pos = !next_pos;
-
-                if (z_pos->next == z_pos) {
-                    next = z_neg;
-                    continue;
-                }
-
-                next->prev->next = next->next;
-                next->next->prev = next->prev;
-
-                if (next == z_pos)
-                    z_pos = z_pos->prev;
-
-                if (nextu < z_neg->u || nextu >= z_neg->next->u) {
-                    next = z_neg->next;
-                } else {
-                    next = z_neg->next->next;
-
-                    while (nextu < next->u)
-                        next = next->next;
-                }
-
-                continue;
-            }
-
-            next_pos = !next_pos;
-            if (z_neg->next == z_neg)
-                break;
-
-            next->prev->next = next->next;
-            next->next->prev = next->prev;
-
-            if (next == z_neg)
-                z_neg = z_neg->prev;
-
-            if (nextu < z_pos->u || nextu >= z_pos->next->u) {
-                next = z_pos->next;
-            } else {
-                next = z_pos->next->next;
-
-                while (nextu < next->u)
-                    next = next->next;
-            }
-        }
-
-        delete[] nodes;
-    }
-
-    decltype(auto) intersect(
+    void generate_winding_order();
+    bool intersect(
         Vec2 up1,
         Vec2 up2,
         Vec2 down1,
         Vec2 down2,
         Vec2& intersection,
         double& t_up,
-        double& t_down)
-    {
-        double u = (m_surface.m_uMax - m_surface.m_uMin);
-
-        while (up1.x() - down1.x() > (u / 2.)) {
-            up1.x() -= u;
-            up2.x() -= u;
-        }
-
-        while (down1.x() - up1.x() > (u / 2.)) {
-            up1.x() += u;
-            up2.x() += u;
-        }
-
-        Vec2 up_min = up1.cwiseMin(up2);
-        Vec2 down_max = down1.cwiseMax(down2);
-
-        if (up_min.x() > down_max.x())
-            return false;
-
-        Vec2 up_max = up1.cwiseMax(up2);
-        Vec2 down_min = down1.cwiseMin(down2);
-
-        if (up_max.x() < down_min.x())
-            return false;
-
-        if (up_min.y() > down_max.y())
-            return false;
-
-        if (up_max.y() < down_min.y())
-            return false;
-
-        Vec2 delta_down = down2 - down1;
-        Vec2 delta_up = up1 - up2;
-        double dT = delta_down.x() * delta_up.y() - delta_up.x() * delta_down.y();
-
-        if (std::abs(dT) < 1e-20)
-            return false;
-
-        Vec2 delta_p = up1 - down1;
-        t_down = (delta_up.y() * delta_p.x() - delta_up.x() * delta_p.y()) / dT;
-
-        if (t_down < 0. || t_down >= 1.)
-            return false;
-
-        t_up = (delta_down.x() * delta_p.y() - delta_down.y() * delta_p.x()) / dT;
-        if (t_up < 0. || t_up >= 1.)
-            return false;
-
-        intersection = (1. - t_up) * up1 + t_up * up2;
-
-        return true;
-    }
-
-    decltype(auto) intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& down)
-    {
-        std::vector<IntersectionNode*> result;
-
-        auto i = 0uz;
-        auto j = down.size() - 1uz;
-        double t_up;
-        double t_down;
-        while (i < up.size() - 1 && j > 0) {
-            Vec2 intersection;
-            if (intersect(up[i], up[i + 1], down[j - 1], down[j], intersection, t_up, t_down)) {
-                auto* p = new IntersectionNode();
-
-                p->t_up = t_up + i;
-                p->t_down = t_down + j - 1.;
-                p->parametric = intersection;
-                p->point = m_surface.f(intersection);
-
-                result.push_back(p);
-            }
-
-            if (up[i + 1].y() < down[j - 1].y()) {
-                i++;
-                continue;
-            }
-
-            if (up[i + 1].y() > down[j - 1].y()) {
-                j--;
-                continue;
-            }
-
-            i++;
-            j--;
-        }
-
-        return result;
-    }
+        double& t_down);
+    std::vector<Composer::IntersectionNode*> intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& down);
 
     decltype(auto) score(IntersectionNode* p)
     {
@@ -471,7 +271,8 @@ public:
         double dt = 0.05,
         double ksp = 1'000'000.,
         double kdp = 200.,
-        double eps = 0.001)
+        double eps = 0.001,
+        [[maybe_unused]] int step = -1)
     {
         generate_winding_order();
 
@@ -493,181 +294,170 @@ public:
             orders[i] = simulator.r();
         }
 
-        std::vector<IntersectionListUp> up_list(m_initial.size() / 2);
-        std::vector<IntersectionListDown> down_list(m_initial.size() / 2);
+        // std::vector<IntersectionListUp> up_list(m_initial.size() / 2);
+        // std::vector<IntersectionListDown> down_list(m_initial.size() / 2);
 
-        for (auto i = 0u; i < m_initial.size() / 2; i++) {
-            for (auto j = 0u; j < m_initial.size() / 2; j++) {
-                auto result = intersect(paths[2 * i + 1], paths[2 * j]);
+        // for (auto i = 0u; i < m_initial.size() / 2; i++) {
+        //     for (auto j = 0u; j < m_initial.size() / 2; j++) {
+        //         auto result = intersect(paths[2 * i + 1], paths[2 * j]);
 
-                for (auto&& p : result) {
-                    up_list[i].insert(p);
-                    down_list[j].insert(p);
-                }
-            }
-        }
+        //         for (auto&& p : result) {
+        //             up_list[i].insert(p);
+        //             down_list[j].insert(p);
+        //         }
+        //     }
+        // }
 
-        for (auto&& ls : up_list) {
-            for (auto p = ls.head->next_up; p != ls.rear; p = p->next_up)
-                score(p);
-        }
+        // for (auto&& ls : up_list) {
+        //     for (auto p = ls.head->next_up; p != ls.rear; p = p->next_up)
+        //         score(p);
+        // }
 
-        for (auto&& ls : up_list) {
-            score_ends(ls.head->next_up);
-            score_ends(ls.rear->prev_up);
-        }
+        // for (auto&& ls : up_list) {
+        //     score_ends(ls.head->next_up);
+        //     score_ends(ls.rear->prev_up);
+        // }
 
-        for (auto&& ls : down_list) {
-            score_ends(ls.head->next_down);
-            score_ends(ls.rear->prev_down);
-        }
-        // std::cout << "begin quadmesh\n";
-        std::ofstream ofs("./tmp.obj");
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    Vec3 p0 = p->point;
-                    Vec3 p1 = p->next_up->point;
-                    Vec3 p2 = p->next_up->next_down->point;
-                    Vec3 p3 = p->next_up->next_down->prev_up->point;
+        // for (auto&& ls : down_list) {
+        //     score_ends(ls.head->next_down);
+        //     score_ends(ls.rear->prev_down);
+        // }
 
-                    double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
-                    if (area > max_area) {
-                        max_area = area;
-                        max_quad.segment<3>(0) = p0;
-                        max_quad.segment<3>(3) = p1;
-                        max_quad.segment<3>(6) = p2;
-                        max_quad.segment<3>(9) = p3;
-                    }
+        // if (false) {
+        //     std::ofstream ofs(m_options->out_path + "/" + m_options->experiment + "/obj/step-" + std::to_string(step) + ".obj");
+        //     std::stringstream obj_verts {};
+        //     std::stringstream obj_faces {};
+        //     auto count = 0uz;
 
-                    ofs << "v " << p0.transpose() << '\n';
-                    ofs << "v " << p1.transpose() << '\n';
-                    ofs << "v " << p2.transpose() << '\n';
-                    ofs << "v " << p3.transpose() << '\n';
-                }
-                p = p->next_up;
-            }
-        }
+        //     for (auto& ls : up_list) {
+        //         auto p = ls.head;
 
-        std::cout << "max_area: " << max_area << '\n';
-        std::cout << "max_quad: " << max_quad.transpose() << '\n';
+        //         while (p != ls.rear) {
+        //             if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+        //                 Vec3 p0 = p->point;
+        //                 Vec3 p1 = p->next_up->point;
+        //                 Vec3 p2 = p->next_up->next_down->point;
+        //                 Vec3 p3 = p->next_up->next_down->prev_up->point;
 
-        int cnt = 1;
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    ofs << "f " << cnt << " " << cnt + 1 << " " << cnt + 2 << " " << cnt + 3 << std::endl;
-                    cnt += 4;
-                }
-                p = p->next_up;
-            }
-        }
+        //                 double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
+        //                 if (area > max_area) {
+        //                     max_area = area;
+        //                     max_quad.segment<3>(0) = p0;
+        //                     max_quad.segment<3>(3) = p1;
+        //                     max_quad.segment<3>(6) = p2;
+        //                     max_quad.segment<3>(9) = p3;
+        //                 }
 
-        std::cout << "wrote quadmesh\n";
-        // exit(EXIT_SUCCESS);
+        //                 obj_verts << "v " << p0.transpose() << '\n';
+        //                 obj_verts << "v " << p1.transpose() << '\n';
+        //                 obj_verts << "v " << p2.transpose() << '\n';
+        //                 obj_verts << "v " << p3.transpose() << '\n';
 
-        auto motion = std::vector<LocalFrame>(2 * m_num_paths * (m_num_particles + 2) - 2);
-        auto ct = 0;
-        auto l = 0.; // what is this?
+        //                 obj_faces << "f " << count++ << " " << count++ << " " << count++ << " " << count++ << std::endl;
+        //             }
+
+        //             p = p->next_up;
+        //         }
+        //     }
+
+        //     ofs << obj_verts.str() << obj_faces.str();
+        //     std::cout << "max_area: " << max_area << '\n';
+        //     std::cout << "max_quad: " << max_quad.transpose() << '\n';
+        // }
+
+        auto motion = std::vector<LocalFrame>();
+        motion.reserve(2 * m_num_paths * m_num_particles);
 
         for (auto&& [j, i] : enumerate(m_winding_order)) {
             auto const& path = paths[i];
             auto const& order = orders[i];
 
-            auto cur = 0;
-            auto type = 1;
-            Vec3 pcur = m_surface.f(path[cur]);
-            Vec3 pnext = Vec3::Zero();
-            Vec3 ncur = m_surface.normal(path[cur]);
-            Vec3 nnext = Vec3::Zero();
+            // if (i != 40)
+            //     continue;
 
-            while (cur < m_num_particles - 1) {
-                pnext = m_surface.f(path[cur + order[cur]]);
-                nnext = m_surface.normal(path[cur + order[cur]]);
+            for (auto idx = 0uz; idx < path.size(); idx++) {
+                // FIXME: In most cases order[idx] is equal to 1; so a lot of this computation is actually wasteful
+                auto const N = order[idx];
+                size_t i0 = idx;
+                size_t i1 = std::clamp(i0 + N, 0uz, path.size() - 1uz);
 
-                motion[ct].position = pcur + SF_OFF * ncur;
-                motion[ct].normal = ncur;
-                motion[ct].direction = (pnext - pcur).normalized();
-                motion[ct].shadow = path[cur];
-                motion[ct].l = l;
-                motion[ct].type = type;
-                motion[ct].distance = 0.;
-                interpolate(motion[ct], up_list, down_list, i, cur);
+                Vec3 n0 = m_surface.normal(path[i0]);
+                Vec3 n1 = m_surface.normal(path[i1]);
 
-                ct++;
+                Vec3 p0 = m_surface.f(path[i0]) + SF_OFF * n0;
+                Vec3 p1 = m_surface.f(path[i1]) + SF_OFF * n1;
 
-                Vec3 n1 = Vec3(ncur.x(), ncur.y(), 0.).normalized();
-                Vec3 n2 = Vec3(nnext.x(), nnext.y(), 0.).normalized();
+                Vec3 direction = (p1 - p0).normalized();
 
-                double dl = acos(std::clamp(n1.dot(n2), -1., 1.) / (order[cur] * ANGLE_SPEED_CONST));
-                l += dl;
+                // LocalFrame frame {
+                //     p0, // position
+                //     n0,
+                //     direction,
+                //     path[i0], // shadow
+                //     0., // l
+                //     0, // type
+                //     0.,
+                //     0.,
+                //     0.
+                // };
 
-                for (int j = 1; j < order[cur]; j++) {
-#    define LERP(a, b, start, end) (((double)(a - b) * start + (double)(b) * end) / (double)(a))
-                    motion[ct].position = LERP(order[cur], j, pcur, pnext) + SF_OFF * ncur;
-                    motion[ct].normal = LERP(order[cur], j, ncur, nnext).normalized();
-                    motion[ct].direction = (pnext - pcur).normalized();
-                    motion[ct].shadow = path[cur + j];
-                    motion[ct].l = l;
-                    motion[ct].type = type;
-                    motion[ct].distance = (motion[ct].position - m_surface.f(path[cur + j])).norm();
-                    interpolate(motion[ct], up_list, down_list, i, cur + j);
+                // // interpolate(frame, up_list, down_list, i, idx);
 
-                    ct++;
-                    l += dl;
+                // motion.push_back(frame);
+                for (auto k = 0; k < N; k++) {
+                    double t = ((double)k) / ((double)N);
+                    Vec3 world = (1. - t) * p0 + t * p1;
+                    Vec3 normal = ((1. - t) * n0 + t * n1).normalized();
+                    Vec2 parametric = path[idx];
+                    Vec3 projection = world;
+                    double distance = 0.;
+
+                    if (N != 1) {
+                        Vec3 surface = m_surface.f(parametric);
+                        distance = (world - surface).norm();
+
+                        Vec3 normal = (n1 + n0).normalized();
+                        Vec3 tau = normal.cross(direction).normalized().cross(direction);
+
+                        // Vec2 bb = m_surface.closest_point(world);
+                        // Vec2 pp = m_surface._closest_point(world, tau, bb);
+
+                        Vec3 trace = world;
+                        double t = 0.;
+                        for (auto i = 0; i < 50; i++) {
+                            double h = m_surface.sdf(trace);
+
+                            if (std::abs(h) < 1e-3)
+                                break;
+
+                            t += h;
+                            trace = t * tau + world;
+                        }
+
+                        projection = trace;
+                    }
+
+                    LocalFrame frame {
+                        world, // position
+                        normal,
+                        projection, // projection
+                        direction,
+                        parametric, // shadow
+                        0., // l
+                        0, // type
+                        distance,
+                        0.,
+                        0.
+                    };
+
+                    // interpolate(frame, up_list, down_list, i, idx);
+
+                    motion.push_back(frame);
+
+                    idx++;
                 }
-
-                cur += order[cur];
-                pcur = pnext;
-                ncur = nnext;
-            }
-
-            motion[ct].position = pcur + SF_OFF * ncur;
-            motion[ct].normal = ncur;
-            motion[ct].direction = motion[ct - 1].direction;
-            motion[ct].shadow = path[cur];
-            motion[ct].l = l;
-            motion[ct].type = type;
-            motion[ct].distance = 0.;
-            interpolate(motion[ct], up_list, down_list, i, m_num_particles - 1);
-
-            ct++;
-            l += m_l_turn;
-
-            if (j != (int)(m_winding_order.size() - 1)) {
-                pnext = m_surface.f(m_initial[m_winding_order[j + 1]][0]);
-                nnext = m_surface.normal(m_initial[m_winding_order[j + 1]][0]);
-
-                motion[ct].normal = motion[ct - 1].direction;
-                motion[ct].position = pcur + SF_OFF * motion[ct].normal;
-                motion[ct].direction = (pnext - pcur).normalized();
-                motion[ct].shadow = motion[ct - 1].shadow;
-                motion[ct].l = l;
-                motion[ct].type = -1;
-                motion[ct].distance = 0.;
-                interpolate(motion[ct], up_list, down_list, i, -1);
-
-                ct++;
-                Vec3 n1 = Vec3(ncur.x(), ncur.y(), 0.).normalized();
-                Vec3 n2 = Vec3(nnext.x(), nnext.y(), 0.).normalized();
-
-                l += acos(std::clamp(n1.dot(n2), -1., 1.) / (5. * ANGLE_SPEED_CONST));
-
-                motion[ct].normal = motion[ct - 1].normal;
-                motion[ct].position = pnext + SF_OFF * motion[ct].normal;
-                motion[ct].direction = motion[ct - 1].direction;
-                motion[ct].shadow = m_initial[m_winding_order[j + 1]][0];
-                motion[ct].l = l;
-                motion[ct].type = -1;
-                motion[ct].distance = 0.;
-                interpolate(motion[ct], up_list, down_list, i, -1);
-                ct++;
-                l += m_l_turn;
             }
         }
-
         return motion;
     }
 

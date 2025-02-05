@@ -49,6 +49,7 @@ public:
     [[nodiscard]] Vec3 f_vv(Vec2 const& p) const override;
 
     [[nodiscard]] Eigen::MatrixXd jacobian(Vec2 const& p) const;
+    [[nodiscard]] virtual auto _closest_point(Vec3 const& p, Vec3 const& v, Vec2 const&) const -> Vec2 final;
 
     auto const& points() const { return m_points; }
 

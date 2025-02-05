@@ -28,10 +28,14 @@ protected:
 
     mutable std::vector<Vec2> m_grid2D;
     mutable std::vector<Vec3> m_grid3D;
+    mutable std::vector<Vec3> m_gridNormals;
+
 public:
     ParametricSurface() = delete;
     ParametricSurface(std::shared_ptr<Options> const& options, double epsilon = 1e-5);
     ParametricSurface(std::shared_ptr<Options> const& options, double u_min, double u_max, double v_min, double v_max, double epsilon = 1e-5);
+
+    [[nodiscard]] virtual auto sdf(Vec3 const& p) const -> double;
 
     [[nodiscard]] virtual Vec3 f(Vec2 const& p) const = 0;
     [[nodiscard]] virtual Vec3 f_u(Vec2 const& p) const;
@@ -49,8 +53,10 @@ public:
 
     [[nodiscard]] Vec2 rescale(Vec2 const& p) const;
 
-    [[nodiscard]] Vec2 closest_point(Vec3 const& p, size_t max_iterations = 1000) const;
-    [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations = 1000) const;
+    [[nodiscard]] virtual auto _closest_point([[maybe_unused]] Vec3 const& o, [[maybe_unused]] Vec3 const& d, [[maybe_unused]] Vec2 const& guess) const -> Vec2 { return Vec2::Zero(); };
+    [[nodiscard]] auto closest_point_local(Vec3 const& p, Vec3 const& n) const -> Vec2;
+    [[nodiscard]] auto closest_point(Vec3 const& p, size_t max_iterations = 1000) const -> Vec2;
+    [[nodiscard]] auto closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations = 1000) const -> Vec2;
 
     double u_max() const { return m_uMax; }
     double u_min() const { return m_uMin; }

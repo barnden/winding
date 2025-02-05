@@ -8,9 +8,12 @@
 using Vec2 = Eigen::Vector2d;
 using Vec3 = Eigen::Vector3d;
 
-constexpr float PI = 3.14159265359;
+constexpr double PI = 3.141592653589793;
 
-#    define enumerate(v) std::views::zip(std::views::iota(0), v)
+#define __enumerate(_1, _2, NAME, ...) NAME
+#define __enumerate_start_index(v, start) std::views::zip(std::views::iota(start), v)
+#define __enumerate_zero(v) __enumerate_start_index(v, 0)
+#define enumerate(...) __enumerate(__VA_ARGS__, __enumerate_start_index, __enumerate_zero)(__VA_ARGS__)
 
 struct Options {
     std::string data_path = "./reference";
@@ -19,10 +22,10 @@ struct Options {
     std::string experiment = "reference";
 
     // If pull_in and push_out then alternate pull_in - push_out
-    bool push_out = true;
+    bool push_out = false;
     bool pull_in = false;
 
-    bool bruteforce_mapping = false;
+    bool use_bvh = false;
 };
 
 #    ifdef DEBUG_FPE_TRAP

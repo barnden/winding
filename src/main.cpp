@@ -7,10 +7,12 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <iostream>
+#include <string_view>
 
 #include <filesystem>
 
 namespace fs = std::filesystem;
+using namespace std::string_view_literals;
 
 #ifdef STANDALONE
 int main(int argc, char* argv[])
@@ -57,16 +59,19 @@ int main(int argc, char* argv[])
     }
 
     {
-        auto create_if_not_exists = [](auto const& path) {
-            if (!fs::is_directory(path) || fs::exists(path))
-                fs::create_directory(path);
+        auto create_directory = [](auto const& path) {
+            if (!fs::is_directory(path) || !fs::exists(path))
+                return fs::create_directory(path);
+
+            return true;
         };
 
-        create_if_not_exists(options->out_path);
-        create_if_not_exists(options->out_path + "/" + options->experiment);
-        create_if_not_exists(options->out_path + "/" + options->experiment + "/spline");
-        create_if_not_exists(options->out_path + "/" + options->experiment + "/path");
-        create_if_not_exists(options->out_path + "/" + options->experiment + "/max_quad");
+        for (std::string directory : { "", "spline", "path", "max_quad", "obj" }) {
+            auto path = options->out_path + "/" + options->experiment + "/" + directory;
+
+            if (!create_directory(path))
+                throw std::runtime_error("fail create_directory(\"" + path + "\")");
+        }
 
         fs::copy_file(options->data_path + "/" + options->file_stem + ".txt", options->out_path + "/" + options->experiment + "/spline/step-0.txt", fs::copy_options::overwrite_existing);
     }

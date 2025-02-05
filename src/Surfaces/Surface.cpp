@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #include "Surfaces/Surface.h"
-#include <ranges>
 #include <iostream>
+#include <ranges>
 
 ParametricSurface::ParametricSurface(std::shared_ptr<Options> const& options, double epsilon)
     : m_options(options)
-    , m_epsilon(epsilon) {};
+    , m_epsilon(epsilon) { };
 
 ParametricSurface::ParametricSurface(std::shared_ptr<Options> const& options, double u_min, double u_max, double v_min, double v_max, double epsilon)
     : m_options(options)
@@ -17,7 +17,7 @@ ParametricSurface::ParametricSurface(std::shared_ptr<Options> const& options, do
     , m_uMax(u_max)
     , m_vMin(v_min)
     , m_vMax(v_max)
-    , m_epsilon(epsilon) {};
+    , m_epsilon(epsilon) { };
 
 Vec3 ParametricSurface::f_u(Vec2 const& p) const { return nf_u(p); }
 
@@ -85,6 +85,7 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
 {
     m_grid2D = decltype(m_grid2D)((nu + 1) * (nv + 1), Vec2::Zero());
     m_grid3D = decltype(m_grid3D)((nu + 1) * (nv + 1), Vec3::Zero());
+    m_gridNormals = decltype(m_grid3D)((nu + 1) * (nv + 1), Vec3::Zero());
 
     double du = (m_uMax - m_uMin) / nu;
     double dv = (m_vMax - m_vMin) / nv;
@@ -96,24 +97,56 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
 
             m_grid2D[ct] = p;
             m_grid3D[ct] = f(p);
+            m_gridNormals[ct] = normal(p);
 
             ct++;
         }
     }
 }
+template <typename T>
+int sgn(T val)
+{
+    return (T(0) < val) - (val < T(0));
+}
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
+auto ParametricSurface::sdf(Vec3 const& p) const -> double
 {
     if (m_grid2D.empty()) {
         generate_search_grid(1024, 1024);
-        m_bvh = BVH(&m_grid3D, 1024);
+        m_bvh = BVH(&m_grid3D, &m_gridNormals, 256);
+    }
+
+    auto id = m_bvh.closest_point(p);
+    Vec2 uv = m_grid2D[id];
+    Vec3 v = p - m_grid3D[id];
+    double distance = v.norm();
+
+    return sgn(normal(uv).dot(v)) * distance;
+}
+
+auto ParametricSurface::closest_point_local(Vec3 const& p, Vec3 const& n) const -> Vec2
+{
+    if (m_grid2D.empty()) {
+        generate_search_grid(1024, 1024);
+        m_bvh = BVH(&m_grid3D, &m_gridNormals, 256);
+    }
+
+    auto id = m_bvh.closest_point_ray(p, n);
+    return m_grid2D[id];
+}
+
+auto ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const -> Vec2
+{
+    if (m_grid2D.empty()) {
+        generate_search_grid(1024, 1024);
+        m_bvh = BVH(&m_grid3D, &m_gridNormals, 256);
     }
 
     auto id = m_bvh.closest_point(p);
     return closest_point(p, m_grid2D[id], max_iterations);
 }
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations) const
+auto ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations) const -> Vec2
 {
     Vec2 xk = guess;
 

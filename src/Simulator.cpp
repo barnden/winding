@@ -24,18 +24,16 @@ Simulator::Simulator(
     if (!init_path.empty()) {
         m_size = init_path.size();
         m_position_initial = init_path;
+    } else {
+        m_position_initial = decltype(m_position_initial)(m_size, Vec2::Zero());
 
-        return;
+        Vec2 p0(0., -1.);
+        Vec2 p1(9.43347686131086, 0.9965750445589878);
+        Vec2 dp = (p1 - p0) / (m_size - 1.);
+
+        for (int i = 0; i < m_size; i++)
+            m_position_initial[i] = p0 + (double)i * dp;
     }
-
-    m_position_initial = decltype(m_position_initial)(m_size, Vec2::Zero());
-
-    Vec2 p0(0., -1.);
-    Vec2 p1(9.43347686131086, 0.9965750445589878);
-    Vec2 dp = (p1 - p0) / (m_size - 1.);
-
-    for (int i = 0; i < m_size; i++)
-        m_position_initial[i] = p0 + (double)i * dp;
 }
 
 void Simulator::simulate(int num_iterations)
@@ -49,7 +47,7 @@ void Simulator::simulate(int num_iterations)
     std::cout << i << " iterations simulated.\n";
 }
 
-OffSurface::OffSurface(Options const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path)
+OffSurface::OffSurface(std::shared_ptr<Options> const& options, ParametricSurface const& f, std::vector<Vec2> const& init_path)
     : Simulator(f, init_path)
     , m_options(options)
 {
@@ -209,14 +207,13 @@ void OffSurface::mapping()
         cr = cl + len;
         Vec3 p0 = surface().f(m_position[cl]);
         Vec3 p1 = surface().f(m_position[cr]);
-
         for (int i = 1; i < m_r[cl]; i++) {
             Vec3 world = ((double)i / len) * p1 + ((double)(len - i) / len) * p0;
 
-            if (m_options.bruteforce_mapping) {
+            Vec2 guess = m_position[cl + i];
+            if (m_options->use_bvh) {
                 m_position[cl + i] = surface().closest_point(world);
             } else {
-                Vec2 guess = m_position[cl + i];
                 m_position[cl + i] = surface().closest_point(world, guess);
             }
         }
@@ -230,7 +227,7 @@ void OffSurface::lifting()
     int cl = 0;
     int cm = m_r[0];
 
-    Vec3 pl = surface().f(m_position[0]);
+    Vec3 pl = surface().f(m_position[cl]);
     Vec3 pm = surface().f(m_position[cm]);
 
     while (cm < size() - 1) {

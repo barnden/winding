@@ -9,7 +9,7 @@
 #include "utils.h"
 #include <iostream>
 
-std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
+auto CubicBSpline::get_uv(Vec2 const& p) const -> std::tuple<double, double, int, int>
 {
     Vec2 uv = p;
 
@@ -134,6 +134,51 @@ void CubicBSpline::read(std::string const& file)
         [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
         [](double v) { return Eigen::RowVector4d(6. * v, 2., 0., 0.); },
         p);
+}
+
+[[nodiscard]] auto CubicBSpline::_closest_point(Vec3 const& o, Vec3 const& d, Vec2 const& guess) const -> Vec2
+{
+    Vec2 xk = guess;
+    double tk = 1e-2;
+
+    for (auto i = 0uz; i < 1'000; i++) {
+        Vec3 r = o + d * tk;
+        Vec3 fr = f(xk) - r;
+
+        Vec3 fu = f_u(xk);
+        Vec3 fv = f_v(xk);
+        Vec3 fuu = f_uu(xk);
+        Vec3 fuv = f_uv(xk);
+        Vec3 fvv = f_vv(xk);
+
+        Vec3 J(fu.dot(fr), fv.dot(fr), (-d).dot(fr));
+        Eigen::Matrix3d H = Eigen::Matrix3d::Zero();
+        H(0, 0) = fu.dot(fu) + fuu.dot(fr);
+        H(1, 1) = fv.dot(fv) + fvv.dot(fr);
+        H(2, 2) = 1.;
+
+        H(0, 1) = fu.dot(fv) + fr.dot(fuv);
+        H(0, 2) = (-d).dot(fu);
+        H(1, 2) = (-d).dot(fv);
+
+        H = 2. * H;
+        J = 2. * J;
+
+        H.triangularView<Eigen::Lower>() = H.transpose();
+
+        Vec3 dx = H.inverse() * J;
+
+        if (fr.norm() < 1e-4)
+            break;
+
+        if (xk.y() - dx.y() > m_vMax || xk.y() - dx.y() < m_vMin)
+            break;
+
+        xk -= dx.head<2>();
+        tk -= dx.z();
+    }
+
+    return xk;
 }
 
 Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const

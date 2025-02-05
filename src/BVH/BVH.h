@@ -20,12 +20,19 @@ struct BVHNode {
 class BVH {
     std::shared_ptr<BVHNode> m_root;
     std::vector<Vec3> const* m_points;
+    std::vector<Vec3> const* m_normals;
 
 public:
     BVH()
         : m_root(nullptr)
-        , m_points(nullptr) {};
-    BVH(std::vector<Vec3> const* points, size_t num_points_per_leaf = 8);
+        , m_points(nullptr)
+        , m_normals(nullptr) { };
+    BVH(std::vector<Vec3> const* points, std::vector<Vec3> const* normals, size_t num_points_per_leaf = 8);
 
-    size_t closest_point(Vec3 const& x) const;
+    template<typename AABBMetric, typename PointMetric>
+    auto closest_point(AABBMetric&& aabb_metric, PointMetric&& point_metric, Vec3 const& x, Vec3 const& v=Vec3::Zero()) const -> size_t;
+    auto closest_point_ray(Vec3 const& o, Vec3 const& d) const -> size_t;
+
+    auto closest_point(Vec3 const& x) const -> size_t;
+    auto closest_point_local(Vec3 const& x, Vec3 const& v) const -> size_t;
 };

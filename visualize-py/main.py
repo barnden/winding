@@ -1,0 +1,518 @@
+import numpy as np
+import re
+from mayavi import mlab
+from matplotlib import pyplot as plt
+
+from traits.api import HasTraits, Range, List, Instance, on_trait_change, Enum
+from traitsui.api import View, Item, Group, CheckListEditor, EnumEditor
+from mayavi.core.ui.api import MayaviScene, SceneEditor, MlabSceneModel
+
+
+class Surface:
+    x_limits = [-1, 1]
+    y_limits = [-1, 1]
+    z_limits = [-1, 1]
+    eps = 1e-5
+
+    winding_path_file = "points.txt"
+
+    def __init__(self, file=None):
+        if file is not None:
+            self.winding_path_file = file
+
+    def normal(self, u, v):
+        du = (np.array(self.f(u + self.eps, v)) - np.array(self.f(u - self.eps, v))) / (
+            2.0 * self.eps
+        )
+        dv = (np.array(self.f(u, v + self.eps)) - np.array(self.f(u, v - self.eps))) / (
+            2.0 * self.eps
+        )
+
+        normal = np.cross(du, dv, axis=0)
+        normal /= np.linalg.norm(normal, axis=0)
+
+        return normal
+
+    def generate_mesh(self, N=32):
+        parametric_space = np.meshgrid(
+            np.linspace(self.u_min, self.u_max, N),
+            np.linspace(self.v_min, self.v_max, N),
+        )
+
+        return self.f(*parametric_space), self.normal(*parametric_space)
+
+    def winding_path(self):
+        with open(self.winding_path_file) as f:
+            data = list(
+                map(
+                    lambda line: list(
+                        map(lambda x: float(x), re.sub(",", "", line).split())
+                    ),
+                    f.readlines(),
+                )
+            )
+
+        return data
+
+
+class H1(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = 0
+    v_max = 1
+
+    z_limits = [0, 1]
+
+    winding_path_file = "hyperboloid.txt"
+
+    @staticmethod
+    def f(u, v):
+        return ((v**2 - v + 0.4) * np.cos(u), (v**2 - v + 0.4) * np.sin(u), v)
+
+
+class Vase(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = -1
+    v_max = 1
+
+    z_limits = [-1, 1]
+    winding_path_file = "vase.txt"
+
+    @staticmethod
+    def f(u, v):
+        return (
+            (0.5 - 0.4 * v * (1.0 + v) * (1.0 - v)) * np.cos(u),
+            (0.5 + 0.4 * v * (1.0 + v) * (1.0 - v)) * np.sin(u),
+            v,
+        )
+
+
+class Spring(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = 0
+    v_max = 4.0 * np.pi
+
+    r1 = 1
+    r2 = 0.3
+    kh = 0.15
+
+    z_limits = [0, 2]
+    winding_path_file = "spring.txt"
+
+    @staticmethod
+    def f(u, v):
+        return (
+            (Spring.r1 + Spring.r2 * np.cos(u)) * np.cos(v),
+            (Spring.r1 + Spring.r2 * np.cos(u)) * np.sin(v),
+            -Spring.r2 * np.sin(u) + Spring.kh * v,
+        )
+
+
+class Torus(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = 0
+    v_max = 2.0 * np.pi - 0.001
+
+    r1 = 1
+    r2 = 0.3
+
+    z_limits = [-1, 1]
+    winding_path_file = "torus.txt"
+
+    @staticmethod
+    def f(u, v):
+        return (
+            (Torus.r1 + Torus.r2 * np.cos(u)) * np.cos(v),
+            (Torus.r1 + Torus.r2 * np.cos(u)) * np.sin(v),
+            -Torus.r2 * np.sin(u),
+        )
+
+
+class TrefoilKnot(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = 0
+    v_max = 2.0 * np.pi - 0.001
+
+    x_limits = [-3, 3]
+    y_limits = [-3, 3]
+    z_limits = [-3, 3]
+    winding_path_file = "trefoil.txt"
+
+    @staticmethod
+    def f(u, v):
+        p0 = np.array(
+            [
+                np.sin(v) + 2.0 * np.sin(2.0 * v),
+                np.cos(v) - 2.0 * np.cos(2.0 * v),
+                -1.0 * np.sin(3.0 * v),
+            ]
+        )
+
+        t = np.array(
+            [
+                np.cos(v) + 4.0 * np.cos(2.0 * v),
+                -np.sin(v) + 4.0 * np.sin(2.0 * v),
+                -3.0 * np.cos(3.0 * v),
+            ]
+        )
+        t /= np.linalg.norm(t, axis=0)
+
+        e1 = np.array([0.0, 0.0, 1.0])
+        T = np.tensordot(e1, t, axes=[[0], [0]])
+
+        e1 = e1[..., None, None].repeat(u.shape[0], 1).repeat(u.shape[1], 2)
+        e1 = e1 - (T * t)
+        e1 /= np.linalg.norm(e1, axis=0)
+
+        e2 = np.cross(t, e1, axis=0)
+
+        return p0 + 0.4 * np.cos(u) * e1 + 0.4 * np.sin(u) * e2
+
+
+class BSpline(Surface):
+    u_min = 0
+    u_max = 2.0 * np.pi
+    v_min = 2
+    v_max = 2.0 * np.pi - 0.001
+
+    x_limits = [-3, 3]
+    y_limits = [-3, 3]
+    z_limits = [-3, 3]
+    winding_path_file = "trefoil.txt"
+    control_point_path_file = "spline.txt"
+
+    basis = (
+        1
+        / 6
+        * np.array(
+            [
+                [-1.0, 3.0, -3.0, 1.0],
+                [3.0, -6.0, 3.0, 0.0],
+                [-3.0, 0.0, 3.0, 0.0],
+                [1.0, 4.0, 1.0, 0.0],
+            ]
+        )
+    )
+
+    def __init__(self, winding_path, control_path):
+        self.winding_path_file = winding_path
+        self.control_point_path_file = control_path
+
+        with open(self.control_point_path_file) as f:
+            lines = f.readlines()
+
+        self.u_max, self.v_max = list(map(float, lines[0].split()))
+        self.v_max -= 1
+
+        self.points = np.zeros((int(self.v_max) + 1, 3 * int(self.u_max), 3))
+
+        lines = list(map(lambda x: list(map(float, x.split())), lines[1:]))
+        k = 0
+        for i in range(int(self.v_max) + 1):
+            for j in range(int(self.u_max)):
+                self.points[i][j] = lines[k]
+
+                k += 1
+
+    def get_uv(self, u, v):
+        while u < 0.0:
+            u += self.u_max
+
+        iu = int(u)
+        iv = int(v)
+
+        if iv == int(self.v_max):
+            iv -= 1
+
+        if iv == 1:
+            iv += 1
+
+        u -= iu
+        v -= iv
+
+        iu %= int(self.u_max)
+
+        return (u, v, iu, iv)
+
+    def f(self, u, v):
+        u, v, iu, iv = self.get_uv(u, v)
+
+        U = np.array([u**3, u**2, u, 1.0]) @ self.basis
+        V = np.array([v**3, v**2, v, 1.0]) @ self.basis
+
+        iu += int(self.u_max)
+        P = np.array(
+            [
+                V
+                @ np.array(
+                    [
+                        self.points[iv - 2][(iu - 2) % int(self.u_max)],
+                        self.points[iv - 1][(iu - 2) % int(self.u_max)],
+                        self.points[iv - 0][(iu - 2) % int(self.u_max)],
+                        self.points[iv + 1][(iu - 2) % int(self.u_max)],
+                    ]
+                ),
+                V
+                @ np.array(
+                    [
+                        self.points[iv - 2][(iu - 1) % int(self.u_max)],
+                        self.points[iv - 1][(iu - 1) % int(self.u_max)],
+                        self.points[iv - 0][(iu - 1) % int(self.u_max)],
+                        self.points[iv + 1][(iu - 1) % int(self.u_max)],
+                    ]
+                ),
+                V
+                @ np.array(
+                    [
+                        self.points[iv - 2][(iu + 0) % int(self.u_max)],
+                        self.points[iv - 1][(iu + 0) % int(self.u_max)],
+                        self.points[iv - 0][(iu + 0) % int(self.u_max)],
+                        self.points[iv + 1][(iu + 0) % int(self.u_max)],
+                    ]
+                ),
+                V
+                @ np.array(
+                    [
+                        self.points[iv - 2][(iu + 1) % int(self.u_max)],
+                        self.points[iv - 1][(iu + 1) % int(self.u_max)],
+                        self.points[iv - 0][(iu + 1) % int(self.u_max)],
+                        self.points[iv + 1][(iu + 1) % int(self.u_max)],
+                    ]
+                ),
+            ]
+        )
+
+        return U @ P
+
+    def generate_mesh(self, N=32):
+        parametric_space = np.array(
+            np.meshgrid(
+                np.linspace(self.u_min, self.u_max, N),
+                np.linspace(self.v_min, self.v_max, N),
+            )
+        )
+
+        mesh = np.zeros((3, N, N))
+        normals = np.zeros((3, N, N))
+
+        for i in range(N):
+            for j in range(N):
+                mesh[:, i, j] = self.f(*parametric_space[:, i, j])
+                normals[:, i, j] = self.normal(*parametric_space[:, i, j])
+
+        return mesh, normals
+
+
+class Visualization(HasTraits):
+    options = List(
+        editor=CheckListEditor(values=["Show Control Mesh", "Show Shadow Path", "Show Projected Path"])
+    )
+    path_type = Enum("None", "Distance", "Path Distance", "Angles")
+
+    scene = Instance(MlabSceneModel, ())
+
+    view = View(
+        Item(
+            "scene",
+            editor=SceneEditor(scene_class=MayaviScene),
+            height=725,
+            width=725,
+            show_label=False,
+        ),
+        Group(
+            Item("mesh", show_label=False),
+            Item("options", style="custom", show_label=False),
+            Item(
+                "path_type",
+                style="custom",
+                editor=EnumEditor(
+                    values=["None", "Distance", "Path Distance", "Angles"], cols=4
+                ),
+                show_label=False,
+            ),
+            label="Display Options",
+            show_border=True,
+        ),
+        title="Winding",
+    )
+
+    def __init__(self, surfaces, title=None, view=None):
+        self.add_trait("mesh", Range(0, len(surfaces) - 1, 0))
+
+        HasTraits.__init__(self)
+
+        self.meshes = []
+        self.control_meshes = []
+        self.paths = []
+
+        self.initialize(surfaces)
+
+    def initialize(self, surfaces):
+        cmap = plt.get_cmap("viridis")
+        cmaplist = np.array([cmap(i) for i in range(cmap.N)]) * 255
+        color_range = [
+            {"vmin": 0.0, "vmax": None},
+            {"vmin": None, "vmax": None},
+            {"vmin": 0.3, "vmax": 0.4},
+        ]
+
+        ct = 0
+        for surface in surfaces:
+            _mesh, _normals = surface.generate_mesh(128)
+            mesh = mlab.mesh(
+                *_mesh, color=(0.6, 0.65, 0.8), figure=self.scene.mayavi_scene
+            )
+            self.meshes.append(mesh)
+
+            if surface.winding_path_file is not None:
+                path = np.array(surface.winding_path())
+
+                # 4: dist to surface, 5: path dist, 6: angles, 7-9: shadow path (xyz)
+                paths = []
+                # N = 40
+                # A = N * 200
+                # B = (N + 1) * 200
+                for j in range(4, 7):
+                    winding_plot = mlab.plot3d(
+                        *path[:, 1:4].T,
+                        abs(path[:, j].T),
+                        tube_radius=0.003,
+                        **color_range[j - 4],
+                    )
+                    # winding_plot = mlab.plot3d(
+                    #     *path[A:B, 1:4].T,
+                    #     abs(path[A:B, j].T),
+                    #     tube_radius=0.003,
+                    #     **color_range[j - 4],
+                    # )
+                    winding_plot.module_manager.scalar_lut_manager.lut.table = cmaplist
+
+                    paths.append(winding_plot)
+
+                shadow_plot = mlab.plot3d(*path[:, 7:10].T, tube_radius=0.003, color=(1.0, 0.0, 0.0))
+                projected_plot = mlab.plot3d(*path[:, 13:16].T, tube_radius=0.003, color=(1., .5, 0.))
+
+                paths.append(shadow_plot)
+                paths.append(projected_plot)
+                # mlab.points3d(*path[:, 7:10].T, scale_factor=0.0075, opacity=.5)
+                # mlab.points3d(*path[A:B, 7:10].T, scale_factor=0.0075, opacity=.5)
+                # mlab.quiver3d(*path[:, 7:10].T, *path[:, 10:].T, scale_factor=0.065)
+
+                self.paths.append(paths)
+
+            control_mesh = []
+
+            if isinstance(surface, BSpline):
+                J = surface.points.shape[1] // 3
+                control_points = mlab.points3d(
+                    surface.points[:, :J, 0],
+                    surface.points[:, :J, 1],
+                    surface.points[:, :J, 2],
+                    scale_factor=0.025,
+                    figure=self.scene.mayavi_scene,
+                )
+                control_mesh.append(control_points)
+
+                for j in range(surface.points.shape[0]):
+                    line = mlab.plot3d(
+                        surface.points[j, :J, 0],
+                        surface.points[j, :J, 1],
+                        surface.points[j, :J, 2],
+                        tube_radius=0.003,
+                        figure=self.scene.mayavi_scene,
+                    )
+                    control_mesh.append(line)
+
+                for j in range(J):
+                    line = mlab.plot3d(
+                        surface.points[:, j, 0],
+                        surface.points[:, j, 1],
+                        surface.points[:, j, 2],
+                        tube_radius=0.003,
+                        figure=self.scene.mayavi_scene,
+                    )
+                    control_mesh.append(line)
+
+                # with open(f"../build/altoutdeform-max_quad-{ct}.txt") as f:
+                #     verts = np.array([*map(lambda x: [*map(float, x.strip().split(','))], f.readlines())])
+                #     quad = mlab.triangular_mesh(*verts.T, [[3, 1, 0], [3, 2, 1]], color=(1., 0., 0.))
+                #     control_mesh.append(quad)
+
+            ct += 1
+            # quad = np.array([[-0.50636, -0.152212, -0.125947], [-0.444435, 0.0993786, 0.0945401],  [-0.40025,  0.295414, -0.145504], [-0.595699, 0.0791206, -0.338357]])
+            # mlab.plot3d(*quad.T, tube_radius=0.003, color=(1., 0., 0.), figure=self.scene.mayavi_scene)
+
+            self.control_meshes.append(control_mesh)
+
+        self.on_mesh_change()
+
+    @on_trait_change("mesh")
+    def on_mesh_change(self):
+        for i in range(0, len(surfaces)):
+            self.meshes[i].visible = False
+
+        self.meshes[int(self.mesh)].visible = True
+
+        self.on_option_change()
+        self.on_path_type_change()
+
+    @on_trait_change("options")
+    def on_option_change(self):
+        for control_mesh in self.control_meshes:
+            for item in control_mesh:
+                item.visible = False
+
+        if "Show Control Mesh" in self.options:
+            for item in self.control_meshes[int(self.mesh)]:
+                item.visible = True
+                
+        self.paths[int(self.mesh)][-2].visible = "Show Shadow Path" in self.options and self.path_type != "None"
+        self.paths[int(self.mesh)][-1].visible = "Show Projected Path" in self.options and self.path_type != "None"
+
+    @on_trait_change("path_type")
+    def on_path_type_change(self):
+        for paths in self.paths:
+            for path in paths:
+                path.visible = False
+
+        if self.path_type == "None":
+            return
+
+        idx = ["Distance", "Path Distance", "Angles"].index(self.path_type)
+        self.paths[int(self.mesh)][idx].visible = True
+
+        self.paths[int(self.mesh)][-2].visible = "Show Shadow Path" in self.options
+        self.paths[int(self.mesh)][-1].visible = "Show Projected Path" in self.options
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    root = "../experiments"
+    experiment = "experiment"
+    N = 15
+
+    if len(argv[1:]) == 1:
+        root = argv[1]
+
+    if len(argv[1:]) >= 2:
+        root = argv[1]
+        experiment = argv[2]
+
+    if len(argv[1:]) >= 3:
+        N = int(argv[3])
+
+    surfaces = [
+        BSpline(
+            f"{root}/{experiment}/path/step-{x}.txt",
+            f"{root}/{experiment}/spline/step-{x}.txt",
+        )
+        for x in range(N)
+    ]
+    # surfaces = [BSpline(None, f"{root}/ideformed-spline-step-0.txt")]
+    viz = Visualization(surfaces, title=experiment)
+    viz.configure_traits()
