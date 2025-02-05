@@ -29,6 +29,21 @@ Vec3 ParametricSurface::f_uv(Vec2 const& p) const { return nf_uv(p); }
 
 Vec3 ParametricSurface::f_vv(Vec2 const& p) const { return nf_vv(p); }
 
+template <typename T>
+auto sgn(T val) -> int
+{
+    return(T(0) < val) - (val < T(0));
+}
+
+auto ParametricSurface::sdf(Vec3 const& p) const -> double
+{
+    Vec2 P_parametric = closest_point(p);
+    Vec3 v = p - f(P_parametric);
+    auto sign = sgn(normal(P_parametric).dot(v));
+
+    return sign * v.norm();
+}
+
 Vec3 ParametricSurface::normal(Vec2 const& p) const
 {
     return f_u(p).cross(f_v(p)).normalized();

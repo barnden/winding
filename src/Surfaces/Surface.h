@@ -45,6 +45,8 @@ public:
     [[nodiscard]] Vec3 nf_uv(Vec2 const& p) const;
     [[nodiscard]] Vec3 nf_vv(Vec2 const& p) const;
 
+    [[nodiscard]] auto sdf(Vec3 const& p) const -> double;
+
     [[nodiscard]] Vec2 rescale(Vec2 const& p) const;
 
     [[nodiscard]] Vec2 closest_point(Vec3 const& p, size_t max_iterations = 1000) const;
