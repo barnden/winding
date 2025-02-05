@@ -19,6 +19,7 @@ namespace Config {
     extern bool alternate_push_pull;
 
     extern bool use_bvh;
+    extern bool use_ray_shoot_mapping;
 
     void argparse(int argc, char* argv[]);
 };

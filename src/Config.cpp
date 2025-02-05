@@ -21,7 +21,7 @@ bool pull_in = false;
 bool alternate_push_pull = false;
 
 bool use_bvh = true;
-bool use_ray_shoot = true;
+bool use_ray_shoot_mapping = true;
 }
 
 void Config::argparse(int argc, char* argv[])
@@ -40,6 +40,7 @@ void Config::argparse(int argc, char* argv[])
     pull_in = flags.contains('i');
     alternate_push_pull = flags.contains('a');
     use_bvh = !flags.contains('B');
+    use_ray_shoot_mapping = !flags.contains('R');
 
     if (push_out && pull_in && !alternate_push_pull) {
         std::cout << "[Config] 'push_out' and 'pull_in' specified without 'alternate_push_pull', defaulting to 'push_out'\n";

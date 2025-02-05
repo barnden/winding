@@ -215,14 +215,43 @@ void OffSurface::mapping()
         Vec3 p0 = surface().f(m_position[cl]);
         Vec3 p1 = surface().f(m_position[cr]);
 
-        for (int i = 1; i < m_r[cl]; i++) {
-            Vec3 world = ((double)i / len) * p1 + ((double)(len - i) / len) * p0;
+        if (Config::use_ray_shoot_mapping) {
+            Vec3 n0 = surface().normal(m_position[cl]);
+            Vec3 n1 = surface().normal(m_position[cr]);
 
-            if (Config::use_bvh) {
-                m_position[cl + i] = surface().closest_point(world);
-            } else {
-                Vec2 guess = m_position[cl + i];
-                m_position[cl + i] = surface().closest_point(world, guess);
+            Vec3 d = (p1 - p0).normalized();
+            Vec3 eta = (n0 + n1).normalized();
+            Vec3 ray_direction = (eta.cross(d)).cross(d);
+
+            for (auto i = 1uz; i < len; i++) {
+                auto s = ((double) i) / len;
+                Vec3 world = s * p1 + (1. - s) * p0;
+
+                Vec3 p = world;
+                auto t = 0.;
+                for (auto j = 0; j < 50; j++) {
+                    auto h = surface().sdf(p);
+
+                    if (std::abs(h) < 1e-3)
+                        break;
+
+                    t += h;
+                    p = t * ray_direction + world;
+                }
+
+                m_position[cl + i] = surface().closest_point(p);
+            }
+        } else {
+            for (int i = 1; i < m_r[cl]; i++) {
+                auto t = ((double) i) / len;
+                Vec3 world = t * p1 + (1. - t) * p0;
+
+                if (Config::use_bvh) {
+                    m_position[cl + i] = surface().closest_point(world);
+                } else {
+                    Vec2 guess = m_position[cl + i];
+                    m_position[cl + i] = surface().closest_point(world, guess);
+                }
             }
         }
 
