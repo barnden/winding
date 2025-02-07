@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-inline decltype(auto) create_morton_curve(std::vector<Vec3> const* points)
+inline auto create_morton_curve(std::vector<Vec3> const& points) -> std::vector<std::pair<Morton::Code, size_t>>
 {
     static constexpr auto MORTON_DOMAIN = 1048576ULL;
 
@@ -18,15 +18,15 @@ inline decltype(auto) create_morton_curve(std::vector<Vec3> const* points)
     auto body_volume = AABB();
     body_volume.setEmpty();
 
-    curve.reserve(points->size());
+    curve.reserve(points.size());
 
-    for (auto&& point : *points)
+    for (auto&& point : points)
         body_volume.extend(point);
 
     Vec3 size = (body_volume.max() - body_volume.min()).array() + 1.;
     Vec3 scale = MORTON_DOMAIN * size.cwiseInverse();
 
-    for (auto&& [i, point] : enumerate(*points)) {
+    for (auto&& [i, point] : enumerate(points)) {
         Eigen::Matrix<Morton::Code, 1, 3> const p = (point.array() * scale.array()).cast<Morton::Code>();
         auto const code = Morton::Encode(p.x(), p.y(), p.z());
 
@@ -39,10 +39,10 @@ inline decltype(auto) create_morton_curve(std::vector<Vec3> const* points)
     return curve;
 }
 
-BVH::BVH(std::vector<Vec3> const* points, size_t num_points_per_leaf)
+BVH::BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf)
     : m_points(points)
 {
-    auto const curve = create_morton_curve(m_points);
+    auto const curve = create_morton_curve(points);
     auto leaves = std::deque<std::shared_ptr<BVHNode>>();
 
     for (auto i = 0uz; i < curve.size(); i += num_points_per_leaf) {
@@ -53,7 +53,7 @@ BVH::BVH(std::vector<Vec3> const* points, size_t num_points_per_leaf)
             [[maybe_unused]] auto&& [code, idx] = curve[j];
 
             points.push_back(idx);
-            volume.extend(m_points->at(idx));
+            volume.extend(m_points[idx]);
         }
 
         leaves.push_back(std::make_shared<BVHNode>(volume, nullptr, nullptr, std::move(points)));
@@ -102,7 +102,7 @@ double distance(AABB const& volume, Vec3 const& p)
                 continue;
 
             for (auto&& [i, idx] : enumerate(node->data.value())) {
-                auto const& p = m_points->at(idx);
+                auto const& p = m_points[idx];
                 auto const d_point = (p - x).squaredNorm();
 
                 if (d_point < alpha) {

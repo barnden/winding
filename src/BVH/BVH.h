@@ -24,13 +24,14 @@ struct BVHNode {
 
 class BVH {
     std::shared_ptr<BVHNode> m_root;
-    std::vector<Vec3> const* m_points;
+    std::vector<Vec3> m_points;
 
 public:
     BVH()
         : m_root(nullptr)
-        , m_points(nullptr) {};
-    BVH(std::vector<Vec3> const* points, size_t num_points_per_leaf = 8);
+        , m_points({}) {};
+
+    BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf = 8);
 
     size_t closest_point(Vec3 const& x) const;
 };

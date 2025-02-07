@@ -123,7 +123,7 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
         }
     }
 
-    m_bvh = BVH(&m_grid3D, std::max(nu, nv));
+    new (&m_bvh) BVH(m_grid3D, std::max(nu, nv));
 }
 
 Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
