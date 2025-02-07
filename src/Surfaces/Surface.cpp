@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -98,8 +98,14 @@ Vec2 ParametricSurface::rescale(Vec2 const& p) const
 
 void ParametricSurface::generate_search_grid(int nu, int nv) const
 {
-    m_grid2D = decltype(m_grid2D)((nu + 1) * (nv + 1), Vec2::Zero());
-    m_grid3D = decltype(m_grid3D)((nu + 1) * (nv + 1), Vec3::Zero());
+    if (!m_grid2D.empty())
+        return;
+
+    m_grid2D.clear();
+    m_grid2D.resize((nu + 1) * (nv + 1));
+
+    m_grid3D.clear();
+    m_grid3D.resize((nu + 1) * (nv + 1));
 
     double du = (m_uMax - m_uMin) / nu;
     double dv = (m_vMax - m_vMin) / nv;
@@ -115,16 +121,15 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
             ct++;
         }
     }
+
+    m_bvh = BVH(&m_grid3D, std::max(nu, nv));
 }
 
 Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
 {
-    if (m_grid2D.empty()) {
         generate_search_grid(1024, 1024);
-        m_bvh = BVH(&m_grid3D, 1024);
-    }
-
     auto id = m_bvh.closest_point(p);
+
     return closest_point(p, m_grid2D[id], max_iterations);
 }
 
