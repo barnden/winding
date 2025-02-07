@@ -169,8 +169,11 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
     }
 
     auto modified_surface = CubicBSpline(m_surface.m_nv, m_surface.m_nu, std::move(augmented_control_points));
-    std::swap(m_surface, modified_surface);
+
     std::cout << "[Editor] Hausdorff: " << hausdorff_distance(m_surface, modified_surface) << '\n';
+    std::cout << "[Editor] pct. diff: " << percent_difference(m_surface, modified_surface) << '\n';
+
+    std::swap(m_surface, modified_surface);
 
     m_step++;
 }

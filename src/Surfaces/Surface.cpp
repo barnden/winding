@@ -129,8 +129,8 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
 Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
 {
     generate_search_grid(1024, 1024);
-    auto id = m_bvh.closest_point(p);
 
+    auto id = m_bvh.closest_point(p);
     return closest_point(p, m_grid2D[id], max_iterations);
 }
 
@@ -187,4 +187,31 @@ auto hausdorff_distance(ParametricSurface const& surfaceA, ParametricSurface con
     }
 
     return hausdorff;
+}
+
+auto percent_difference(ParametricSurface const& surfaceA, ParametricSurface const& surfaceB) -> double
+{
+    surfaceA.generate_search_grid(1024, 1024);
+    surfaceB.generate_search_grid(1024, 1024);
+
+    if ((surfaceA.u_min() != surfaceB.u_min()) || (surfaceA.u_max() != surfaceB.u_max()) || (surfaceA.v_min() != surfaceB.v_min()) || (surfaceA.v_max() != surfaceB.v_max()))
+        return 100.;
+
+    auto num_different = 0;
+
+    if (surfaceA.m_grid3D.size() != surfaceB.m_grid3D.size()) {
+        for (auto&& [uv, worldA] : std::views::zip(surfaceA.m_grid2D, surfaceA.m_grid3D)) {
+            auto worldB = surfaceB.f(uv);
+
+            if ((worldA - worldB).norm() > 1e-4)
+                num_different++;
+        }
+    } else {
+        for (auto&& [worldA, worldB] : std::views::zip(surfaceA.m_grid3D, surfaceB.m_grid3D)) {
+            if ((worldA - worldB).norm() > 1e-4)
+                num_different++;
+        }
+    }
+
+    return 100. * ((double)num_different) / ((double)surfaceA.m_grid2D.size());
 }

@@ -53,6 +53,7 @@ public:
     [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations = 1000) const;
 
     friend auto hausdorff_distance(ParametricSurface const&, ParametricSurface const&) -> double;
+    friend auto percent_difference(ParametricSurface const&, ParametricSurface const&) -> double;
 
     double u_max() const { return m_uMax; }
     double u_min() const { return m_uMin; }
