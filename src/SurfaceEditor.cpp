@@ -9,10 +9,10 @@
 #    include "epigraph.hpp"
 #endif
 
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <filesystem>
 
 #include "Config.h"
 #include "SurfaceEditor.h"
@@ -35,7 +35,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
         auto outpath = std::format("{}/{}/path/step-{}.txt", Config::out_directory, Config::experiment, m_step);
         auto ostream = std::ofstream(outpath);
         for (auto&& [i, frame] : enumerate(path)) {
-            bool do_push = Config::push_out && frame.distance > 0. && (!Config::alternate_push_pull || m_step % 2 == 1);
+            bool do_push = Config::push_out && frame.distance > 1e-3 && (!Config::alternate_push_pull || m_step % 2 == 1);
 
             if (do_push) {
                 Vec2 uv = frame.shadow;
@@ -91,7 +91,7 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
         std::cout << "[Editor] No path particles are off-surface." << '\n';
         return;
     } else {
-        std::cout << "[Editor] Iteration " << (m_step + 1) << " found " << k << " off-surface particles.\n";
+        std::cout << std::format("[Editor] Iteration {} found {} off-surface particles.\n", m_step + 1, k);
     }
 
     Eigen::MatrixXd M(k, 3 * m);
@@ -168,6 +168,9 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
         ostream.close();
     }
 
-    m_surface = CubicBSpline(m_surface.m_nv, m_surface.m_nu, std::move(augmented_control_points));
+    auto modified_surface = CubicBSpline(m_surface.m_nv, m_surface.m_nu, std::move(augmented_control_points));
+    std::swap(m_surface, modified_surface);
+    std::cout << "[Editor] Hausdorff: " << hausdorff_distance(m_surface, modified_surface) << '\n';
+
     m_step++;
 }

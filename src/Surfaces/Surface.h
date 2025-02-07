@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -51,6 +51,8 @@ public:
 
     [[nodiscard]] Vec2 closest_point(Vec3 const& p, size_t max_iterations = 1000) const;
     [[nodiscard]] Vec2 closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations = 1000) const;
+
+    friend auto hausdorff_distance(ParametricSurface const&, ParametricSurface const&) -> double;
 
     double u_max() const { return m_uMax; }
     double u_min() const { return m_uMin; }

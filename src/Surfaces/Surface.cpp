@@ -7,6 +7,7 @@
 #include "Config.h"
 
 #include <iostream>
+#include <random>
 #include <ranges>
 
 ParametricSurface::ParametricSurface(double epsilon)
@@ -32,7 +33,7 @@ Vec3 ParametricSurface::f_vv(Vec2 const& p) const { return nf_vv(p); }
 template <typename T>
 auto sgn(T val) -> int
 {
-    return(T(0) < val) - (val < T(0));
+    return (T(0) < val) - (val < T(0));
 }
 
 auto ParametricSurface::sdf(Vec3 const& p) const -> double
@@ -127,7 +128,7 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
 
 Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) const
 {
-        generate_search_grid(1024, 1024);
+    generate_search_grid(1024, 1024);
     auto id = m_bvh.closest_point(p);
 
     return closest_point(p, m_grid2D[id], max_iterations);
@@ -162,4 +163,28 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
     }
 
     return xk;
+}
+
+auto hausdorff_distance(ParametricSurface const& surfaceA, ParametricSurface const& surfaceB) -> double
+{
+    static auto rd = std::random_device();
+    static auto generator = std::mt19937(rd());
+    static auto distribution = std::uniform_real_distribution(0., 100.);
+
+    surfaceA.generate_search_grid(1024, 1024);
+    surfaceB.generate_search_grid(1024, 1024);
+
+    auto hausdorff = -std::numeric_limits<double>::infinity();
+    auto threshold = (2. / std::log2(surfaceA.m_grid3D.size()));
+
+    for (auto&& point : surfaceA.m_grid3D) {
+        if (distribution(generator) > threshold)
+            continue;
+
+        auto d_point = (point - surfaceB.f(surfaceB.closest_point(point))).norm();
+
+        hausdorff = std::max(hausdorff, d_point);
+    }
+
+    return hausdorff;
 }
