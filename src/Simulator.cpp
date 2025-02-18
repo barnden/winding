@@ -171,6 +171,7 @@ void OffSurface::step()
     Mh2K.setFromTriplets(Mh2K_ele.begin(), Mh2K_ele.end());
 
     mat = JT * Mh2K * JT.transpose();
+    Eigen::VectorXd A = forces - dJ * varr;
     barr = JT * (JT.transpose() * varr) + m_dt * (JT * (forces - dJ * varr));
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
@@ -186,7 +187,17 @@ void OffSurface::step()
     for (int i = 1; i < N - 1; i++) {
         int const& idx = touching[i];
 
-        m_velocity[idx] = varr.segment<2>(2 * i);
+        Vec2 velocity = varr.segment<2>(2 * i);
+
+        if (Config::friction_coefficient > 0.) {
+            Vec3 acceleration = A.segment<3>(3 * i);
+            auto a_dot_n = std::abs(acceleration.dot(surface().normal(m_position[idx])));
+            auto friction = 1. - (m_dt * Config::friction_coefficient * a_dot_n) / velocity.norm();
+
+            velocity *= std::max(friction, 0.);
+        }
+
+        m_velocity[idx] = velocity;
         m_position[idx] += m_velocity[idx] * m_dt;
     }
 
@@ -224,7 +235,7 @@ void OffSurface::mapping()
             Vec3 ray_direction = (eta.cross(d)).cross(d);
 
             for (auto i = 1uz; i < len; i++) {
-                auto s = ((double) i) / len;
+                auto s = ((double)i) / len;
                 Vec3 world = s * p1 + (1. - s) * p0;
 
                 Vec3 p = world;
@@ -239,11 +250,12 @@ void OffSurface::mapping()
                     p = t * ray_direction + world;
                 }
 
-                m_position[cl + i] = surface().closest_point(p);
+                Vec2 parametric = surface().closest_point(p);
+                m_position[cl + i] = parametric;
             }
         } else {
             for (int i = 1; i < m_r[cl]; i++) {
-                auto t = ((double) i) / len;
+                auto t = ((double)i) / len;
                 Vec3 world = t * p1 + (1. - t) * p0;
 
                 if (Config::use_bvh) {

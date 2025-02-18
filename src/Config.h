@@ -9,17 +9,18 @@
 #include <string_view>
 
 namespace Config {
-    extern std::string_view data_directory;
-    extern std::string_view out_directory;
-    extern std::string_view experiment;
-    extern std::string_view stem;
+extern std::string_view data_directory;
+extern std::string_view out_directory;
+extern std::string_view experiment;
+extern std::string_view stem;
 
-    extern bool push_out;
-    extern bool pull_in;
-    extern bool alternate_push_pull;
+extern bool push_out;
+extern bool pull_in;
+extern bool alternate_push_pull;
 
-    extern bool use_bvh;
-    extern bool use_ray_shoot_mapping;
+extern bool use_bvh;
+extern bool use_ray_shoot_mapping;
+extern double friction_coefficient;
 
-    void argparse(int argc, char* argv[]);
+void argparse(int argc, char* argv[]);
 };

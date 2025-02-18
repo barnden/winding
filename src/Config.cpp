@@ -22,6 +22,9 @@ bool alternate_push_pull = false;
 
 bool use_bvh = true;
 bool use_ray_shoot_mapping = true;
+
+// TODO: Add argparser for this
+double friction_coefficient = .3;
 }
 
 void Config::argparse(int argc, char* argv[])
