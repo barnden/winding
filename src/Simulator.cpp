@@ -232,16 +232,17 @@ void OffSurface::mapping()
 
             Vec3 d = (p1 - p0).normalized();
             Vec3 eta = (n0 + n1).normalized();
-            Vec3 ray_direction = (eta.cross(d)).cross(d);
+            Vec3 ray_direction = (eta.cross(d)).cross(d).normalized();
 
-            for (auto i = 1uz; i < len; i++) {
+            for (auto i = 1; i < len; i++) {
                 auto s = ((double)i) / len;
                 Vec3 world = s * p1 + (1. - s) * p0;
 
                 Vec3 p = world;
+                Vec2 uv;
                 auto t = 0.;
-                for (auto j = 0; j < 50; j++) {
-                    auto h = surface().sdf(p);
+                for (auto j = 0; j < Config::sphere_tracing_iterations; j++) {
+                    auto h = surface().sdf(p, uv);
 
                     if (std::abs(h) < 1e-3)
                         break;

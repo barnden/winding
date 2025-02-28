@@ -24,7 +24,8 @@ bool use_bvh = true;
 bool use_ray_shoot_mapping = true;
 
 // TODO: Add argparser for this
-double friction_coefficient = .3;
+int sphere_tracing_iterations = 5;
+double friction_coefficient = .0;
 }
 
 void Config::argparse(int argc, char* argv[])
