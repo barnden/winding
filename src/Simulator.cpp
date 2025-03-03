@@ -172,7 +172,8 @@ void OffSurface::step()
 
     mat = JT * Mh2K * JT.transpose();
     Eigen::VectorXd A = forces - dJ * varr;
-    barr = JT * (JT.transpose() * varr) + m_dt * (JT * (forces - dJ * varr));
+    Eigen::VectorXd V = JT.transpose() * varr;
+    barr = (JT * V) + (m_dt * JT * A);
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
     solver.factorize(mat);
@@ -192,9 +193,9 @@ void OffSurface::step()
         if (Config::friction_coefficient > 0.) {
             Vec3 acceleration = A.segment<3>(3 * i);
             auto a_dot_n = std::abs(acceleration.dot(surface().normal(m_position[idx])));
-            auto friction = 1. - (m_dt * Config::friction_coefficient * a_dot_n) / velocity.norm();
+            auto friction = (m_dt * Config::friction_coefficient * a_dot_n) / V.segment<3>(3 * i).norm();
 
-            velocity *= std::max(friction, 0.);
+            velocity *= std::max(1. - friction, 0.);
         }
 
         m_velocity[idx] = velocity;
