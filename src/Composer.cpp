@@ -99,107 +99,106 @@ auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& d
 
 void Composer::generate_winding_order()
 {
-#if 1
-    m_winding_order.resize(m_initial.size());
-    std::iota(m_winding_order.begin(), m_winding_order.end(), 0);
-#else
+    if (Config::use_winding_order) {
+        OrderNode* nodes = new OrderNode[m_initial.size()];
+        OrderNode* z_pos = nodes;
+        OrderNode* z_neg = nodes + 1;
+        OrderNode* min_p = nodes;
 
-    OrderNode* nodes = new OrderNode[m_initial.size()];
-    OrderNode* z_pos = nodes;
-    OrderNode* z_neg = nodes + 1;
-    OrderNode* min_p = nodes;
+        z_pos->prev = z_pos;
+        z_neg->prev = z_neg;
+        z_pos->next = z_pos;
+        z_neg->next = z_neg;
 
-    z_pos->prev = z_pos;
-    z_neg->prev = z_neg;
-    z_pos->next = z_pos;
-    z_neg->next = z_neg;
+        nodes[0].path = 0;
+        nodes[1].path = 1;
+        nodes[0].u = fmod(m_initial[0][0].x(), 2. * PI);
 
-    nodes[0].path = 0;
-    nodes[1].path = 1;
-    nodes[0].u = fmod(m_initial[0][0].x(), 2. * PI);
+        for (auto i = 2uz; i < m_initial.size(); i++) {
+            OrderNode& cur = nodes[i];
+            cur.path = i;
+            cur.u = fmod(m_initial[i][0].x(), 2. * PI);
 
-    for (auto i = 2uz; i < m_initial.size(); i++) {
-        OrderNode& cur = nodes[i];
-        cur.path = i;
-        cur.u = fmod(m_initial[i][0].x(), 2. * PI);
+            if (cur.u < 0.)
+                cur.u += 2. * PI;
 
-        if (cur.u < 0.)
-            cur.u += 2. * PI;
+            if (i % 2 == 0) {
+                cur.next = z_pos->next;
+                cur.prev = z_pos;
+                z_pos->next = nodes + i;
+                cur.next->prev = nodes + i;
 
-        if (i % 2 == 0) {
-            cur.next = z_pos->next;
-            cur.prev = z_pos;
-            z_pos->next = nodes + i;
-            cur.next->prev = nodes + i;
-
-            if (min_p->u > cur.u)
-                min_p = nodes + i;
-        } else {
-            cur.next = z_neg->next;
-            cur.prev = z_neg;
-            z_neg->next = nodes + i;
-            cur.next->prev = nodes + i;
+                if (min_p->u > cur.u)
+                    min_p = nodes + i;
+            } else {
+                cur.next = z_neg->next;
+                cur.prev = z_neg;
+                z_neg->next = nodes + i;
+                cur.next->prev = nodes + i;
+            }
         }
-    }
 
-    z_pos = min_p;
-    bool next_pos = true;
-    OrderNode* next = nodes;
-    double nextu;
+        z_pos = min_p;
+        bool next_pos = true;
+        OrderNode* next = nodes;
+        double nextu;
 
-    while (next) {
-        m_winding_order.push_back(next->path);
-        nextu = fmod(m_initial[next->path].back().x() - 0.1, 2. * PI);
+        while (next) {
+            m_winding_order.push_back(next->path);
+            nextu = fmod(m_initial[next->path].back().x() - 0.1, 2. * PI);
 
-        if (nextu < 0.)
-            nextu += 2. * PI;
+            if (nextu < 0.)
+                nextu += 2. * PI;
 
-        if (next_pos) {
-            next_pos = !next_pos;
+            if (next_pos) {
+                next_pos = !next_pos;
 
-            if (z_pos->next == z_pos) {
-                next = z_neg;
+                if (z_pos->next == z_pos) {
+                    next = z_neg;
+                    continue;
+                }
+
+                next->prev->next = next->next;
+                next->next->prev = next->prev;
+
+                if (next == z_pos)
+                    z_pos = z_pos->prev;
+
+                if (nextu < z_neg->u || nextu >= z_neg->next->u) {
+                    next = z_neg->next;
+                } else {
+                    next = z_neg->next->next;
+
+                    while (nextu < next->u)
+                        next = next->next;
+                }
+
                 continue;
             }
+
+            next_pos = !next_pos;
+            if (z_neg->next == z_neg)
+                break;
 
             next->prev->next = next->next;
             next->next->prev = next->prev;
 
-            if (next == z_pos)
-                z_pos = z_pos->prev;
+            if (next == z_neg)
+                z_neg = z_neg->prev;
 
-            if (nextu < z_neg->u || nextu >= z_neg->next->u) {
-                next = z_neg->next;
+            if (nextu < z_pos->u || nextu >= z_pos->next->u) {
+                next = z_pos->next;
             } else {
-                next = z_neg->next->next;
+                next = z_pos->next->next;
 
                 while (nextu < next->u)
                     next = next->next;
             }
-
-            continue;
         }
 
-        next_pos = !next_pos;
-        if (z_neg->next == z_neg)
-            break;
-
-        next->prev->next = next->next;
-        next->next->prev = next->prev;
-
-        if (next == z_neg)
-            z_neg = z_neg->prev;
-
-        if (nextu < z_pos->u || nextu >= z_pos->next->u) {
-            next = z_pos->next;
-        } else {
-            next = z_pos->next->next;
-
-            while (nextu < next->u)
-                next = next->next;
-        }
+        delete[] nodes;
+    } else {
+        m_winding_order.resize(m_initial.size());
+        std::iota(m_winding_order.begin(), m_winding_order.end(), 0);
     }
-
-    delete[] nodes;
-#endif
 }

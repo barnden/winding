@@ -22,6 +22,7 @@ bool alternate_push_pull = false;
 
 bool use_bvh = true;
 bool use_ray_shoot_mapping = true;
+bool use_winding_order;
 
 // TODO: Add argparser for this
 int sphere_tracing_iterations = 5;

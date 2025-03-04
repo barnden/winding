@@ -20,6 +20,7 @@ extern bool alternate_push_pull;
 
 extern bool use_bvh;
 extern bool use_ray_shoot_mapping;
+extern bool use_winding_order;
 extern int sphere_tracing_iterations;
 extern double friction_coefficient;
 
