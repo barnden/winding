@@ -357,16 +357,14 @@ public:
             }
         }
 
-        auto motion = std::vector<LocalFrame>{};
+        auto motion = std::vector<LocalFrame> {};
         motion.reserve(2 * m_num_paths * m_num_particles);
-
         for (auto&& [j, i] : enumerate(m_winding_order)) {
             // FIXME: In most cases order[idx] is equal to 1; so a lot of this computation is actually wastefu
 
             auto const& path = paths[i];
             auto const& order = orders[i];
-
-            for (auto idx = 0uz; idx < path.size(); idx++) {
+            for (auto idx = 0uz; idx < path.size();) {
                 auto const N = order[idx];
                 size_t i0 = idx;
                 size_t i1 = std::clamp(i0 + N, 0uz, path.size() - 1uz);
