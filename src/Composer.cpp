@@ -16,55 +16,48 @@ auto Composer::intersect(
     double& t_up,
     double& t_down) -> bool
 {
+    auto u = (m_surface.u_max() - m_surface.u_min());
+    auto const wrap = [&u](auto x) { return u * std::floor(x / u + 0.5); };
 
-    double u = (m_surface.u_max() - m_surface.u_min());
+    auto a1 = up1;
+    auto a2 = up2;
+    auto b1 = down1;
+    auto b2 = down2;
 
-    while (up1.x() - down1.x() > (u / 2.)) {
-        up1.x() -= u;
-        up2.x() -= u;
-    }
+    a2.x() -= wrap(a2.x() - a1.x());
+    b2.x() -= wrap(b2.x() - b1.x());
 
-    while (down1.x() - up1.x() > (u / 2.)) {
-        up1.x() += u;
-        up2.x() += u;
-    }
+    auto ma = (a1.x() + a2.x()) / 2.;
+    auto mb = (b1.x() + b2.x()) / 2.;
 
-    Vec2 up_min = up1.cwiseMin(up2);
-    Vec2 down_max = down1.cwiseMax(down2);
+    b1.x() -= wrap(mb - ma);
+    b2.x() -= wrap(mb - ma);
 
-    if (up_min.x() > down_max.x())
+    Vec2 deltaA = a1 - a2;
+    Vec2 deltaB = b2 - b1;
+    Vec2 deltaS = a1 - b1;
+
+    auto dA = deltaA.x() * deltaB.y() - deltaA.y() * deltaB.x();
+
+    if (std::abs(dA) < 1e-4)
         return false;
 
-    Vec2 up_max = up1.cwiseMax(up2);
-    Vec2 down_min = down1.cwiseMin(down2);
-
-    if (up_max.x() < down_min.x())
-        return false;
-
-    if (up_min.y() > down_max.y())
-        return false;
-
-    if (up_max.y() < down_min.y())
-        return false;
-
-    Vec2 delta_down = down2 - down1;
-    Vec2 delta_up = up1 - up2;
-    double dT = delta_down.x() * delta_up.y() - delta_up.x() * delta_down.y();
-
-    if (std::abs(dT) < 1e-20)
-        return false;
-
-    Vec2 delta_p = up1 - down1;
-    t_down = (delta_up.y() * delta_p.x() - delta_up.x() * delta_p.y()) / dT;
+    auto dAu = deltaA.x() * deltaS.y() - deltaA.y() * deltaS.x();
+    t_down = dAu / dA;
 
     if (t_down < 0. || t_down >= 1.)
         return false;
 
-    t_up = (delta_down.x() * delta_p.y() - delta_down.y() * delta_p.x()) / dT;
+    auto dAt = deltaS.x() * deltaB.y() - deltaS.y() * deltaB.x();
+    t_up = dAt / dA;
+
     if (t_up < 0. || t_up >= 1.)
         return false;
 
-    intersection = (1. - t_up) * up1 + t_up * up2;
+    up1.x() -= u * std::floor(up1.x() / u);
+    up2.x() -= u * std::floor(up2.x() / u);
+
+    intersection = (1. - t_up) * a1 + t_up * a2;
 
     return true;
 }
@@ -75,10 +68,11 @@ auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& d
 
     auto i = 0uz;
     auto j = down.size() - 1uz;
-    double t_up;
-    double t_down;
     while (i < up.size() - 1 && j > 0) {
         Vec2 intersection;
+        double t_up;
+        double t_down;
+
         if (intersect(up[i], up[i + 1], down[j - 1], down[j], intersection, t_up, t_down)) {
             auto* p = new IntersectionNode();
 
@@ -92,16 +86,12 @@ auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& d
 
         if (up[i + 1].y() < down[j - 1].y()) {
             i++;
-            continue;
-        }
-
-        if (up[i + 1].y() > down[j - 1].y()) {
+        } else if (up[i + 1].y() > down[j - 1].y()) {
             j--;
-            continue;
+        } else {
+            i++;
+            j--;
         }
-
-        i++;
-        j--;
     }
 
     return result;
