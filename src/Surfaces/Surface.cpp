@@ -38,9 +38,15 @@ auto sgn(T val) -> int
 
 auto ParametricSurface::sdf(Vec3 const& p) const -> double
 {
-    Vec2 P_parametric = closest_point(p);
-    Vec3 v = p - f(P_parametric);
-    auto sign = sgn(normal(P_parametric).dot(v));
+    Vec2 P_parametric;
+    return sdf(p, P_parametric);
+}
+
+auto ParametricSurface::sdf(Vec3 const& p, Vec2& parametric) const -> double
+{
+    parametric = closest_point(p);
+    Vec3 v = p - f(parametric);
+    auto sign = sgn(normal(parametric).dot(v));
 
     return sign * v.norm();
 }
@@ -132,6 +138,52 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) cons
 
     auto id = m_bvh.closest_point(p);
     return closest_point(p, m_grid2D[id], max_iterations);
+}
+
+Vec2 ParametricSurface::intersection_point(Vec3 const& o, Vec3 const& d, Vec2 const& p_guess, double const t_guess, size_t max_iterations) const
+{
+    Vec2 xk = p_guess;
+    double tk = t_guess;
+
+    for (auto i = 0uz; i < max_iterations; i++) {
+        Vec3 r = o + d * tk;
+
+        Vec3 fr = f(xk) - r;
+
+        Vec3 fu = f_u(xk);
+        Vec3 fv = f_v(xk);
+        Vec3 fuu = f_uu(xk);
+        Vec3 fuv = f_uv(xk);
+        Vec3 fvv = f_vv(xk);
+
+        Vec3 J(fu.dot(fr), fv.dot(fr), (-d).dot(fr));
+        Eigen::Matrix3d H = Eigen::Matrix3d::Zero();
+        H(0, 0) = fu.dot(fu) + fuu.dot(fr);
+        H(1, 1) = fv.dot(fv) + fvv.dot(fr);
+        H(2, 2) = 1.;
+
+        H(0, 1) = fu.dot(fv) + fr.dot(fuv);
+        H(0, 2) = (-d).dot(fu);
+        H(1, 2) = (-d).dot(fv);
+
+        H = 2. * H;
+        J = 2. * J;
+
+        H.triangularView<Eigen::Lower>() = H.transpose();
+
+        Vec3 dx = H.inverse() * J;
+
+        if (fr.norm() < 1e-4)
+            break;
+
+        if (xk.y() - dx.y() > m_vMax || xk.y() - dx.y() < m_vMin)
+            break;
+
+        xk -= dx.head<2>();
+        tk -= dx.z();
+    }
+
+    return xk;
 }
 
 Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations) const
