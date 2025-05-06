@@ -17,8 +17,9 @@
 #    include <iostream>
 #    include <vector>
 
+#    include <chrono>
+
 #    define SF_OFF 0.001
-// #define SPEED_DEFINED_BY_LENGTH
 #    define ANGLE_SPEED_CONST 2.0
 
 class Composer {
@@ -253,27 +254,56 @@ public:
     }
 
     double max_area = -INFINITY;
-    Eigen::Matrix<double, 12, 1> max_quad;
+
+    struct Quad {
+        Vec3 p0;
+        Vec3 p1;
+        Vec3 p2;
+        Vec3 p3;
+
+        double area;
+
+        Quad()
+            : p0(Vec3::Zero())
+            , p1(Vec3::Zero())
+            , p2(Vec3::Zero())
+            , p3(Vec3::Zero())
+            , area(0.) { };
+
+        Quad(Vec3 const& p0, Vec3 const& p1, Vec3 const& p2, Vec3 const& p3)
+            : p0(p0)
+            , p1(p1)
+            , p2(p2)
+            , p3(p3)
+        {
+            area = 0.5 * ((p0 - p1).cross(p0 - p2).norm() + (p3 - p1).cross(p3 - p2).norm());
+        }
+    };
+    std::vector<Quad> quads;
+    Quad max_quad;
 
     decltype(auto) simulate(
-        double dt = 0.05,
-        double ksp = 1'000'000.,
-        double kdp = 200.,
-        double eps = 0.001,
+        double timestep = 0.05,
+        double spring_constant = 1'000'000.,
+        double damping_coefficient = 200.,
+        double epsilon = 0.001,
         int step = 0)
     {
         generate_winding_order();
+        quads = std::vector<Quad>();
 
         auto paths = std::vector<std::vector<Vec2>>(m_initial.size());
         auto orders = std::vector<std::vector<int>>(m_initial.size());
 
+        auto start = std::chrono::steady_clock::now();
+
         for (auto&& [j, i] : enumerate(m_winding_order)) {
             auto simulator = OffSurface(m_surface, m_initial[i]);
 
-            simulator.ksp() = ksp;
-            simulator.kdp() = kdp;
-            simulator.dt() = dt;
-            simulator.eps() = eps;
+            simulator.spring_constant() = spring_constant;
+            simulator.damping_coefficient() = damping_coefficient;
+            simulator.timestep() = timestep;
+            simulator.epsilon() = epsilon;
 
             simulator.simulate(1000);
             simulator.mapping();
@@ -282,6 +312,13 @@ public:
             orders[i] = simulator.r();
         }
 
+        auto end = std::chrono::steady_clock::now();
+
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+        std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
+
+        auto start_meshing = std::chrono::steady_clock::now();
         std::vector<IntersectionListUp> up_list(m_initial.size() / 2);
         std::vector<IntersectionListDown> down_list(m_initial.size() / 2);
 
@@ -318,31 +355,27 @@ public:
                 auto p = ls.head;
                 while (p != ls.rear) {
                     if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                        Vec3 p0 = p->point;
-                        Vec3 p1 = p->next_up->point;
-                        Vec3 p2 = p->next_up->next_down->point;
-                        Vec3 p3 = p->next_up->next_down->prev_up->point;
+                        auto quad = Quad { p->point,
+                                           p->next_up->point,
+                                           p->next_up->next_down->point,
+                                           p->next_up->next_down->prev_up->point };
 
-                        double area = 0.5 * ((p1 - p3).cross(p0 - p1).norm() + (p2 - p3).cross(p2 - p1).norm());
-                        if (area > max_area) {
-                            max_area = area;
-                            max_quad.segment<3>(0) = p0;
-                            max_quad.segment<3>(3) = p1;
-                            max_quad.segment<3>(6) = p2;
-                            max_quad.segment<3>(9) = p3;
+                        quads.push_back(quad);
+                        if (quad.area > max_area) {
+                            max_area = quad.area;
+                            max_quad = quad;
                         }
 
-                        ostream << "v " << p0.transpose() << '\n'
-                                << "v " << p1.transpose() << '\n'
-                                << "v " << p2.transpose() << '\n'
-                                << "v " << p3.transpose() << '\n';
+                        ostream << "v " << quad.p0.transpose() << '\n'
+                                << "v " << quad.p1.transpose() << '\n'
+                                << "v " << quad.p2.transpose() << '\n'
+                                << "v " << quad.p3.transpose() << '\n';
                     }
                     p = p->next_up;
                 }
             }
 
-            std::cout << "max_area: " << max_area << '\n';
-            std::cout << "max_quad: " << max_quad.transpose() << '\n';
+            std::cout << "max quad area: " << max_area << '\n';
 
             int cnt = 1;
             for (auto& ls : up_list) {
@@ -356,6 +389,10 @@ public:
                 }
             }
         }
+
+        auto end_meshing = std::chrono::steady_clock::now();
+        auto duration_meshing = std::chrono::duration_cast<std::chrono::microseconds>(end_meshing - start_meshing);
+        std::cout << "Meshing time: " << duration_meshing.count() << " microseconds" << std::endl;
 
         auto motion = std::vector<LocalFrame> {};
         motion.reserve(2 * m_num_paths * m_num_particles);

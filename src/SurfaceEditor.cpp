@@ -9,89 +9,151 @@
 #    include "epigraph.hpp"
 #endif
 
+#include <cmath>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
 
+#include <chrono>
+
+#include "Composer.h"
 #include "Config.h"
 #include "SurfaceEditor.h"
 
 namespace fs = std::filesystem;
 
-void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
+void write_winding_path(size_t step, ParametricSurface const& surface, std::vector<Composer::LocalFrame> const& path)
+{
+    auto outpath = std::format("{}/{}/path/step-{}.txt", Config::out_directory, Config::experiment, step);
+    auto ostream = std::ofstream(outpath);
+
+    for (auto&& [i, frame] : enumerate(path)) {
+        Vec3 shadow = surface.f(frame.shadow);
+        ostream << std::format("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n", i, frame.position.x(), frame.position.y(), frame.position.z(), frame.distance, frame.path_distance, frame.angle, shadow.x(), shadow.y(), shadow.z(), frame.direction.x(), frame.direction.y(), frame.direction.z(), frame.normal.x(), frame.normal.y(), frame.normal.z());
+    }
+
+    ostream.flush();
+}
+
+void write_maxquad(size_t step, Composer::Quad const& quad)
+{
+    auto outpath = std::format("{}/{}/max_quad/step-{}.txt", Config::out_directory, Config::experiment, step);
+    auto ostream = std::ofstream(outpath);
+
+    ostream << quad.p0.x() << ", " << quad.p0.y() << ", " << quad.p0.z() << '\n'
+            << quad.p1.x() << ", " << quad.p1.y() << ", " << quad.p1.z() << '\n'
+            << quad.p2.x() << ", " << quad.p2.y() << ", " << quad.p2.z() << '\n'
+            << quad.p3.x() << ", " << quad.p3.y() << ", " << quad.p3.z() << '\n';
+}
+
+void SurfaceEditor::step(
+    double timestep,
+    double spring_cosntant,
+    double damping_coefficient,
+    double epsilon)
 {
     std::cout << "[Editor] Begin step " << (m_step + 1) << '\n';
 
     fs::copy_file(std::format("{}/{}.txt", Config::data_directory, Config::stem), std::format("{}/{}/spline/step-0.txt", Config::out_directory, Config::experiment), fs::copy_options::overwrite_existing);
 
     auto composer = Composer(m_surface, m_num_revolutions, m_num_paths, m_num_particles);
-    auto path = composer.simulate(dt, ksp, kdp, eps, m_step);
+    auto path = composer.simulate(timestep, spring_cosntant, damping_coefficient, epsilon, m_step);
     auto max_quad = composer.max_quad;
     auto in_surface = std::vector<std::pair<Vec2, Vec3>> {};
     auto off_surface = std::vector<std::pair<Vec2, Vec3>> {};
 
-    {
-        auto outpath = std::format("{}/{}/path/step-{}.txt", Config::out_directory, Config::experiment, m_step);
-        auto ostream = std::ofstream(outpath);
+    write_winding_path(m_step, m_surface, path);
+
+    bool do_push_out = (Config::alternate_push_pull && m_step % 2 == 0) || (!Config::alternate_push_pull && Config::push_out);
+
+    auto start_build = std::chrono::steady_clock::now();
+    if (do_push_out) {
         for (auto&& [i, frame] : enumerate(path)) {
-            bool do_push = Config::push_out && frame.distance > 1e-3 && (!Config::alternate_push_pull || m_step % 2 == 1);
+            if (frame.distance < 1e-3)
+                continue;
 
-            if (do_push) {
-                Vec2 uv = frame.shadow;
-                off_surface.push_back(std::make_pair(uv, frame.position));
-            }
-
-            ostream << i << ", " << frame.position.x() << ", " << frame.position.y() << ", " << frame.position.z() << ", " << frame.distance << ", " << frame.path_distance << ", " << frame.angle << '\n';
+            off_surface.push_back(std::make_pair(frame.shadow, frame.position));
         }
     }
 
-    {
-        auto const N = 50;
-        auto outpath = std::format("{}/{}/max_quad/step-{}.txt", Config::out_directory, Config::experiment, m_step);
-        auto ostream = std::ofstream(outpath);
+    // write_maxquad(m_step, composer.max_quad);
+    bool do_pull_in = (Config::alternate_push_pull && m_step % 2 == 1) || (!Config::alternate_push_pull && Config::pull_in);
 
-        Vec3 p0 = max_quad.segment<3>(0);
-        Vec3 p1 = max_quad.segment<3>(3);
-        Vec3 p2 = max_quad.segment<3>(6);
-        Vec3 p3 = max_quad.segment<3>(9);
+    // std::cout << "status: " << (do_push_out ? "push out\t" : "") << (do_pull_in ? "pull in\t" : "") << '\n';
 
-        ostream << p0.x() << ", " << p0.y() << ", " << p0.z() << '\n'
-                << p1.x() << ", " << p1.y() << ", " << p1.z() << '\n'
-                << p2.x() << ", " << p2.y() << ", " << p2.z() << '\n'
-                << p3.x() << ", " << p3.y() << ", " << p3.z() << '\n';
+    if (do_pull_in) {
+        std::sort(composer.quads.begin(), composer.quads.end(), [](Composer::Quad a, Composer::Quad b) { return a.area < b.area; });
 
-        Vec3 q0 = (p1 + p0) / 2.;
-        Vec3 q1 = (p3 + p2) / 2.;
-        Vec3 q2 = (p0 + p3) / 2.;
-        Vec3 q3 = (p1 + p2) / 2.;
+        auto N = composer.quads.size();
+        // auto median = N % 2 ? composer.quads[N / 2].area : (composer.quads[N / 2].area + composer.quads[(N / 2) - 1].area) / 2.;
+        auto q1 = N % 2 ? composer.quads[N / 4].area : (composer.quads[N / 4].area + composer.quads[(N / 4) - 1].area) / 2.;
+        auto q3 = N % 2 ? composer.quads[(3 * N) / 4].area : (composer.quads[(3 * N) / 4].area + composer.quads[((3 * N) / 4) - 1].area) / 2.;
+        auto iqr = 2. * (q3 - q1) + q3;
+        // std::cout << std::format("iqr: {}, {}, {}\n", iqr, composer.quads[N-1].area, composer.quads[N-10].area);
 
-        bool do_pull = Config::pull_in && (!Config::alternate_push_pull || m_step % 2 == 0);
-        if (do_pull) {
-            for (auto i = 0; i < N; i++) {
-                double t = ((double)i) / (N - 1.);
+        auto has_outliers = std::any_of(composer.quads.begin() + (3 * N) / 4, composer.quads.end(), [&iqr](Composer::Quad a) { return a.area >= iqr; });
 
-                Vec3 w0 = q0 + t * (q1 - q0);
-                Vec3 w1 = q2 + t * (q3 - q2);
-                Vec2 uv0 = m_surface.closest_point(w0);
-                Vec2 uv1 = m_surface.closest_point(w1);
+        if (has_outliers) {
+            auto constexpr num_particles = 35;
 
-                if (m_step % 2 == 0) {
+            // auto it = std::lower_bound(composer.quads.begin(),
+            //                            composer.quads.end(),
+            //                            composer.quads.back().area - 1e-2,
+            //                            [](Composer::Quad const& a, double& v) { return a.area < v; });
+
+            auto it = std::next(composer.quads.begin(), (3 * N) / 4);
+
+            // Use logistic function mapping m_step -> [epsilon, 1.]
+            auto constexpr epsilon = 0.90;
+            auto constexpr k = 0.125;
+            auto threshold = epsilon + 2. * (1. - epsilon) * (1. / (1. + std::exp(-m_step * k / 2.)) - 0.5);
+            auto lower_bound = composer.quads.back().area * threshold;
+            for (; it != composer.quads.end(); it = std::next(it)) {
+                if (it->area >= lower_bound)
+                    break;
+            }
+
+            for (; it != composer.quads.end(); it = std::next(it)) {
+                auto const& quad = *it;
+
+                Vec3 m0 = (quad.p1 + quad.p0) / 2.;
+                Vec3 m1 = (quad.p3 + quad.p2) / 2.;
+                Vec3 m2 = (quad.p0 + quad.p3) / 2.;
+                Vec3 m3 = (quad.p1 + quad.p2) / 2.;
+
+                Vec3 rd0 = Vec3::Zero();
+                Vec3 rd1 = Vec3::Zero();
+
+                Vec3 d0 = (m1 - m0).normalized();
+                Vec3 d1 = (m3 - m2).normalized();
+
+                for (auto i = 0; i < num_particles; i++) {
+                    double t = ((double)i) / (num_particles - 1.);
+                    Vec3 w0 = m0 + t * d0;
+                    Vec3 w1 = m2 + t * d1;
+
+                    Vec2 uv0 = Vec2::Zero();
+                    Vec2 uv1 = Vec2::Zero();
+                    uv0 = m_surface.closest_point(w0);
+                    uv1 = m_surface.closest_point(w1);
+
                     in_surface.push_back(std::make_pair(uv0, w0));
                     in_surface.push_back(std::make_pair(uv1, w1));
                 }
             }
         }
     }
-    std::cout << "[debug] finish pull-in path\n";
+
+    // std::cout << "[debug] finish " << (do_push_out ? "push-out" : "pull-in") << " path\n";
     auto m = m_surface.m_nv * m_surface.m_nu;
     auto k = off_surface.size() + in_surface.size();
 
     if (k == 0) {
-        std::cout << "[Editor] No path particles are off-surface." << '\n';
+        // std::cout << "[Editor] No path particles are off-surface.\n";
         return;
     } else {
-        std::cout << std::format("[Editor] Iteration {} found {} off-surface particles.\n", m_step + 1, k);
+        // std::cout << std::format("[Editor] Iteration {} found {} optimizable particles.\n", m_step + 1, k);
     }
 
     Eigen::MatrixXd M(k, 3 * m);
@@ -112,6 +174,13 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
         M.row(i + off_surface.size()) = normal.transpose() * m_surface.jacobian(shadow);
         b(i + off_surface.size()) = (world - m_surface.f(shadow)).dot(normal);
     }
+    auto end_build = std::chrono::steady_clock::now();
+
+    auto duration_build = std::chrono::duration_cast<std::chrono::microseconds>(end_build - start_build);
+
+    std::cout << "[debug] Build time: " << duration_build.count() << " microseconds" << std::endl;
+
+    auto start = std::chrono::steady_clock::now();
 
 #if USE_QPMAD
     auto solver = qpmad::Solver();
@@ -145,24 +214,37 @@ void SurfaceEditor::step(double dt, double ksp, double kdp, double eps)
     Eigen::VectorXd deltaC = cvx::eval(dC);
 
 #endif
-    std::cout << "[Editor] Solved least-norm QP, solution L2 norm " << deltaC.norm() << '\n';
+
+    auto end = std::chrono::steady_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    std::println("[Timing] Solved system in {} us", duration.count());
+    std::println("[Editor] Solved least-norm QP (deltaC L2: {})", deltaC.norm());
+
     auto augmented_control_points = std::vector<std::vector<Vec3>>(m_surface.m_nv, std::vector<Vec3>(m_surface.m_nu, Vec3::Zero()));
+    {
+        auto index = 0;
+        for (auto i = 0; i < m_surface.m_nv; i++) {
+            for (auto j = 0; j < m_surface.m_nu; j++) {
+                augmented_control_points[i][j] = m_surface.points()[i][j] + deltaC.segment<3>(3 * index);
+                index++;
+            }
+        }
+    }
+
     {
         auto outpath = std::format("{}/{}/spline/step-{}.txt", Config::out_directory, Config::experiment, m_step + 1);
         auto ostream = std::ofstream(outpath);
 
         ostream << m_surface.m_nv << ' ' << m_surface.m_nu << '\n';
 
-        auto index = 0;
         for (auto i = 0; i < m_surface.m_nv; i++) {
             for (auto j = 0; j < m_surface.m_nu; j++) {
-                augmented_control_points[i][j] = m_surface.points()[i][j] + deltaC.segment<3>(3 * index);
-                // augmented_control_points[i][j + 2 * m_surface.m_nu] = (augmented_control_points[i][j + m_surface.m_nu] = augmented_control_points[i][j]);
-                index++;
-
-                ostream << augmented_control_points[i][j].x() << ' '
-                        << augmented_control_points[i][j].y() << ' '
-                        << augmented_control_points[i][j].z() << '\n';
+                ostream << std::format("{} {} {}\n",
+                                       augmented_control_points[i][j].x(),
+                                       augmented_control_points[i][j].y(),
+                                       augmented_control_points[i][j].z());
             }
         }
         ostream.close();

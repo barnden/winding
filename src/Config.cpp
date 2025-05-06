@@ -26,7 +26,7 @@ bool use_winding_order;
 
 // TODO: Add argparser for this
 int sphere_tracing_iterations = 5;
-double friction_coefficient = .0;
+double friction_coefficient = 0.;
 }
 
 void Config::argparse(int argc, char* argv[])

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,7 +14,7 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
     Vec2 uv = p;
 
     while (uv.x() < 0.)
-        uv.x() += m_uMax;
+        uv.x() += m_u_max;
 
     auto iu = (int)uv.x();
     auto iv = (int)uv.y();
@@ -45,18 +45,19 @@ Eigen::RowVector3d CubicBSpline::get(int v, int u) const
 template <typename UFunc, typename FFunc>
 [[gnu::flatten]] Vec3 CubicBSpline::interpolate(UFunc&& get_u, FFunc&& get_v, Vec2 const& p) const
 {
+    using Mat4x3 = Eigen::Matrix<double, 4, 3>;
     auto [u, v, iu, iv] = get_uv(p);
 
     Eigen::RowVector4d U = get_u(u) * basis();
     Eigen::RowVector4d V = get_v(v) * basis();
 
     // clang-format off
-    Eigen::MatrixXd P = (Eigen::MatrixXd(4, 3) <<
-                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 2), get(iv - 1, iu - 2), get(iv, iu - 2), get(iv + 1, iu - 2)).finished(),
-                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu - 1), get(iv - 1, iu - 1), get(iv, iu - 1), get(iv + 1, iu - 1)).finished(),
-                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 0), get(iv - 1, iu + 0), get(iv, iu + 0), get(iv + 1, iu + 0)).finished(),
-                                V * (Eigen::MatrixXd(4, 3) << get(iv - 2, iu + 1), get(iv - 1, iu + 1), get(iv, iu + 1), get(iv + 1, iu + 1)).finished())
-                            .finished();
+    Mat4x3 P = (Mat4x3{} <<
+                V * (Mat4x3{} << get(iv - 2, iu - 2), get(iv - 1, iu - 2), get(iv, iu - 2), get(iv + 1, iu - 2)).finished(),
+                V * (Mat4x3{} << get(iv - 2, iu - 1), get(iv - 1, iu - 1), get(iv, iu - 1), get(iv + 1, iu - 1)).finished(),
+                V * (Mat4x3{} << get(iv - 2, iu + 0), get(iv - 1, iu + 0), get(iv, iu + 0), get(iv + 1, iu + 0)).finished(),
+                V * (Mat4x3{} << get(iv - 2, iu + 1), get(iv - 1, iu + 1), get(iv, iu + 1), get(iv + 1, iu + 1)).finished())
+            .finished();
     // clang-format on
 
     return U * P;
@@ -74,10 +75,10 @@ void CubicBSpline::read(std::string const& file)
 
     m_points = std::vector<std::vector<Vec3>>(m_nv, std::vector<Vec3>(m_nu));
 
-    m_uMin = 0.;
-    m_uMax = m_nu;
-    m_vMin = 2.;
-    m_vMax = m_nv - 1.;
+    m_u_min = 0.;
+    m_u_max = m_nu;
+    m_v_min = 2.;
+    m_v_max = m_nv - 1.;
 
     for (auto i = 0; i < m_nv; i++) {
         for (auto j = 0; j < m_nu; j++) {

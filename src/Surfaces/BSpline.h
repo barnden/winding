@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #pragma once
 
-#include "BVH/BVH.h"
+#include <iostream>
+#include <string>
 #include "Surfaces/Surface.h"
 #include "utils.h"
 #include "Config.h"
@@ -23,7 +24,7 @@ public:
     int m_nu;
     int m_nv;
 
-    static auto basis() -> Eigen::Matrix4d
+    [[nodiscard]] static auto basis() -> Eigen::Matrix4d
     {
         return 1. / 6. * (Eigen::Matrix4d() << -1., 3., -3., 1., 3., -6., 3., 0., -3., 0., 3., 0., 1., 4., 1., 0.).finished();
     }
@@ -32,6 +33,7 @@ public:
         : ParametricSurface(1e-5)
     {
         auto file = std::format("{}/{}.txt", Config::data_directory, Config::stem);
+        std::cout << "reading: " << file << '\n';
         read(file);
     }
 
@@ -55,6 +57,6 @@ public:
 
     auto const& points() const { return m_points; }
 
-    std::vector<float> get_control_polygon();
-    std::vector<float> get_control_points();
+    [[nodiscard]] auto get_control_polygon() -> std::vector<float>;
+    [[nodiscard]] auto get_control_points() -> std::vector<float>;
 };

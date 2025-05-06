@@ -1,13 +1,11 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #pragma once
 
-#include "Composer.h"
 #include "Surfaces/BSpline.h"
-#include <string>
 
 class SurfaceEditor {
     CubicBSpline m_surface;
@@ -25,12 +23,8 @@ public:
         , m_num_particles(num_particles)
         , m_step(0)
     {
-#if USE_QPMAD
-        std::cout << "[Editor] Using qpmad.\n";
-#else
-        std::cout << "[Editor] Using Epigraph.\n";
-#endif
+        std::println("[Editor] Using {}.\n", USE_QPMAD ? "qpmad" : "Epigraph");
     }
 
-    void step(double dt, double ksp, double kdp, double eps);
+    void step(double timestep, double spring_constant, double damping_coefficient, double epsilon);
 };

@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Composer.h"
+#include <numbers>
 #include <numeric>
+
+#include "Composer.h"
+
+using std::numbers::pi;
 
 auto Composer::intersect(
     Vec2 up1,
@@ -112,15 +116,15 @@ void Composer::generate_winding_order()
 
         nodes[0].path = 0;
         nodes[1].path = 1;
-        nodes[0].u = fmod(m_initial[0][0].x(), 2. * PI);
+        nodes[0].u = fmod(m_initial[0][0].x(), 2. * pi);
 
         for (auto i = 2uz; i < m_initial.size(); i++) {
             OrderNode& cur = nodes[i];
             cur.path = i;
-            cur.u = fmod(m_initial[i][0].x(), 2. * PI);
+            cur.u = fmod(m_initial[i][0].x(), 2. * pi);
 
             if (cur.u < 0.)
-                cur.u += 2. * PI;
+                cur.u += 2. * pi;
 
             if (i % 2 == 0) {
                 cur.next = z_pos->next;
@@ -145,10 +149,10 @@ void Composer::generate_winding_order()
 
         while (next) {
             m_winding_order.push_back(next->path);
-            nextu = fmod(m_initial[next->path].back().x() - 0.1, 2. * PI);
+            nextu = fmod(m_initial[next->path].back().x() - 0.1, 2. * pi);
 
             if (nextu < 0.)
-                nextu += 2. * PI;
+                nextu += 2. * pi;
 
             if (next_pos) {
                 next_pos = !next_pos;

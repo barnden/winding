@@ -3,21 +3,22 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
-#include "Surfaces/Surface.h"
-#include "Config.h"
-
-#include <iostream>
+#include <numbers>
 #include <random>
 #include <ranges>
+
+#include "Surfaces/Surface.h"
+
+using std::numbers::pi;
 
 ParametricSurface::ParametricSurface(double epsilon)
     : m_epsilon(epsilon) { };
 
 ParametricSurface::ParametricSurface(double u_min, double u_max, double v_min, double v_max, double epsilon)
-    : m_uMin(u_min)
-    , m_uMax(u_max)
-    , m_vMin(v_min)
-    , m_vMax(v_max)
+    : m_u_min(u_min)
+    , m_u_max(u_max)
+    , m_v_min(v_min)
+    , m_v_max(v_max)
     , m_epsilon(epsilon) { };
 
 Vec3 ParametricSurface::f_u(Vec2 const& p) const { return nf_u(p); }
@@ -99,8 +100,8 @@ Vec3 ParametricSurface::nf_uv(Vec2 const& p) const
 Vec2 ParametricSurface::rescale(Vec2 const& p) const
 {
     return Vec2(
-        p.x() / (2. * PI) * (m_uMax - m_uMin) + m_uMin,
-        p.y() * (m_uMax - m_uMin) + m_vMin);
+        p.x() / (2. * pi) * (m_u_max - m_u_min) + m_u_min,
+        p.y() * (m_u_max - m_u_min) + m_v_min);
 }
 
 void ParametricSurface::generate_search_grid(int nu, int nv) const
@@ -114,13 +115,13 @@ void ParametricSurface::generate_search_grid(int nu, int nv) const
     m_grid3D.clear();
     m_grid3D.resize((nu + 1) * (nv + 1));
 
-    double du = (m_uMax - m_uMin) / nu;
-    double dv = (m_vMax - m_vMin) / nv;
+    double du = (m_u_max - m_u_min) / nu;
+    double dv = (m_v_max - m_v_min) / nv;
 
     int ct = 0;
     for (int i = 0; i <= nu; i++) {
         for (int j = 0; j <= nv; j++) {
-            Vec2 p(m_uMin + du * i, m_vMin + dv * j);
+            Vec2 p(m_u_min + du * i, m_v_min + dv * j);
 
             m_grid2D[ct] = p;
             m_grid3D[ct] = f(p);
@@ -176,7 +177,7 @@ Vec2 ParametricSurface::intersection_point(Vec3 const& o, Vec3 const& d, Vec2 co
         if (fr.norm() < 1e-4)
             break;
 
-        if (xk.y() - dx.y() > m_vMax || xk.y() - dx.y() < m_vMin)
+        if (xk.y() - dx.y() > m_v_max || xk.y() - dx.y() < m_v_min)
             break;
 
         xk -= dx.head<2>();

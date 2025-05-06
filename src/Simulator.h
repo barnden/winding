@@ -15,13 +15,11 @@ class Simulator {
     ParametricSurface const& m_surface;
 
 protected:
-    double m_ksp;
-    double m_kdp;
-    double m_kpf;
-    double m_kbs;
-    double m_dt;
+    double m_spring_constant;
+    double m_damping_coefficient;
+    double m_timestep;
     double m_t;
-    double m_v_eps;
+    double m_epsilon;
 
     std::vector<Vec2> m_position_initial;
 
@@ -37,12 +35,10 @@ public:
     decltype(auto) size() const { return m_size; }
     decltype(auto) surface() { return m_surface; }
 
-    auto& ksp() { return m_ksp; }
-    auto& kdp() { return m_kdp; }
-    auto& kpf() { return m_kpf; }
-    auto& kbs() { return m_kbs; }
-    auto& dt() { return m_dt; }
-    auto& eps() { return m_v_eps; }
+    auto& spring_constant() { return m_spring_constant; }
+    auto& damping_coefficient() { return m_damping_coefficient; }
+    auto& timestep() { return m_timestep; }
+    auto& epsilon() { return m_epsilon; }
 };
 
 class OffSurface : public Simulator {
