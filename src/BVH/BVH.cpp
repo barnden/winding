@@ -1,11 +1,7 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
+#include <deque>
+
 #include "BVH.h"
 #include "BVH/Morton.h"
-#include <deque>
 
 inline auto create_morton_curve(std::vector<Vec3> const& points) -> std::vector<std::pair<Morton::Code, size_t>>
 {
@@ -45,6 +41,7 @@ BVH::BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf)
     for (auto i = 0uz; i < curve.size(); i += num_points_per_leaf) {
         AABB volume {};
         auto points = std::vector<size_t>();
+        points.reserve(num_points_per_leaf);
 
         for (auto j = i; j < i + num_points_per_leaf && j < curve.size(); j++) {
             [[maybe_unused]] auto&& [code, idx] = curve[j];
@@ -75,7 +72,7 @@ BVH::BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf)
     m_root = leaves.front();
 }
 
-auto distance(AABB const& volume, Vec3 const& p) -> double
+[[gnu::always_inline]] auto distance(AABB const& volume, Vec3 const& p) -> double
 {
     Vec3 x = p.cwiseMax(volume.min()).cwiseMin(volume.max());
     return (x - p).squaredNorm();

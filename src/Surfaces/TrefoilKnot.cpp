@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #include <numbers>
 
 #include "Surfaces/Surface.h"
@@ -11,7 +6,7 @@
 using std::numbers::pi;
 
 TrefoilKnot::TrefoilKnot()
-    : ParametricSurface(0., 2. * pi, 0., 2. * pi - 0.001) {};
+    : ParametricSurface(0., 2. * pi, 0., 2. * pi - 0.001) { };
 
 Vec3 TrefoilKnot::f(Vec2 const& p) const
 {

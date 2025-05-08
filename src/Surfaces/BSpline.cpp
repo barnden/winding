@@ -1,19 +1,17 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #include <fstream>
 
 #include "BSpline.h"
 #include "utils.h"
 #include <iostream>
 
-std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
+[[gnu::always_inline]] std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
 {
     Vec2 uv = p;
 
-    uv.x() = std::fmod(std::fmod(uv.x(), m_u_max) + m_u_max, m_u_max);
+    uv.x() = std::fmod(uv.x(), m_u_max);
+
+    if (uv.x() < 0.)
+        uv.x() = std::fmod(uv.x() + m_u_max, m_u_max);
 
     // Get the Bezier patch
     auto iu = (int)uv.x();
@@ -30,7 +28,7 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
     return std::make_tuple(uv.x(), uv.y(), iu, iv);
 }
 
-Eigen::RowVector3d CubicBSpline::get(int v, int u) const
+[[gnu::always_inline]] Eigen::RowVector3d CubicBSpline::get(int v, int u) const
 {
     u %= m_nu;
 
@@ -71,7 +69,7 @@ void CubicBSpline::read(std::string const& file)
 
     stream >> m_nu >> m_nv;
 
-    m_points = std::vector(m_nv, std::vector<Vec3>(m_nu));
+    m_points = std::vector(m_nv, std::vector<Vec3>(m_nu, Vec3::Zero()));
 
     m_u_min = 0.;
     m_u_max = m_nu;
@@ -87,7 +85,7 @@ void CubicBSpline::read(std::string const& file)
     stream.close();
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f(Vec2 const& p) const
+[[gnu::flatten, gnu::hot]] Vec3 CubicBSpline::f(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
@@ -95,7 +93,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f_u(Vec2 const& p) const
+[[gnu::flatten]] Vec3 CubicBSpline::f_u(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
@@ -103,7 +101,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f_v(Vec2 const& p) const
+[[gnu::flatten]] Vec3 CubicBSpline::f_v(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
@@ -111,7 +109,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f_uv(Vec2 const& p) const
+[[gnu::flatten]] Vec3 CubicBSpline::f_uv(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(3. * u * u, 2. * u, 1., 0.); },
@@ -119,7 +117,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f_uu(Vec2 const& p) const
+[[gnu::flatten]] Vec3 CubicBSpline::f_uu(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(6. * u, 2., 0., 0.); },
@@ -127,7 +125,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-[[nodiscard]] Vec3 CubicBSpline::f_vv(Vec2 const& p) const
+[[gnu::flatten]] Vec3 CubicBSpline::f_vv(Vec2 const& p) const
 {
     return interpolate(
         [](double u) { return Eigen::RowVector4d(u * u * u, u * u, u, 1.); },
@@ -135,7 +133,7 @@ void CubicBSpline::read(std::string const& file)
         p);
 }
 
-Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
+[[gnu::flatten]] Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
 {
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(3, 3 * m_nv * m_nu);
 

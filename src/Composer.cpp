@@ -113,7 +113,7 @@ Composer::Composer(ParametricSurface const& surface, double num_revolutions, int
     auto ddv = v_range / (num_particles + 1);
     auto ddu = ddv / angle;
 
-    m_initial = std::vector(2 * num_paths, std::vector<Vec2>(num_particles));
+    m_initial = std::vector(2 * num_paths, std::vector<Vec2>(num_particles, Vec2::Zero()));
 
     for (auto i = 0; i < num_paths; i++) {
         Vec2 p(surface.u_min() + i * du, surface.v_min());

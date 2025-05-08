@@ -1,12 +1,8 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-#include "Config.h"
 #include <filesystem>
 #include <format>
 #include <print>
+
+#include "Config.h"
 
 namespace fs = std::filesystem;
 using namespace std::literals;

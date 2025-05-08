@@ -31,7 +31,7 @@ Simulator::Simulator(
         return;
     }
 
-    m_position_initial = std::vector<Vec2>(m_size);
+    m_position_initial = std::vector<Vec2>(m_size, Vec2::Zero());
 
     Vec2 p0(0., -1.);
     Vec2 p1(9.43347686131086, 0.9965750445589878);
@@ -56,7 +56,7 @@ OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init
     : Simulator(f, init_path)
 {
     m_position = m_position_initial;
-    m_velocity = std::vector<Vec2>(size());
+    m_velocity = std::vector<Vec2>(size(), Vec2::Zero());
     m_touching = std::vector(size(), true);
     m_l = std::vector(size(), 1);
     m_r = std::vector(size(), 1);

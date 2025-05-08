@@ -89,19 +89,14 @@ public:
 };
 
 struct Quad {
-    Vec3 p0;
-    Vec3 p1;
-    Vec3 p2;
-    Vec3 p3;
+    Vec3 p0 = Vec3::Zero();
+    Vec3 p1 = Vec3::Zero();
+    Vec3 p2 = Vec3::Zero();
+    Vec3 p3 = Vec3::Zero();
 
-    double area;
+    double area = 0.;
 
-    Quad()
-        : p0(Vec3::Zero())
-        , p1(Vec3::Zero())
-        , p2(Vec3::Zero())
-        , p3(Vec3::Zero())
-        , area(0.) { };
+    Quad() = default;
 
     Quad(Vec3 const& p0, Vec3 const& p1, Vec3 const& p2, Vec3 const& p3)
         : p0(p0)

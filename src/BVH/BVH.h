@@ -1,15 +1,10 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #pragma once
-
-#include "utils.h"
 
 #include <Eigen/Dense>
 #include <memory>
 #include <optional>
+
+#include "utils.h"
 
 using AABB = Eigen::AlignedBox3d;
 
@@ -29,7 +24,7 @@ class BVH {
 public:
     BVH()
         : m_root(nullptr)
-        , m_points({}) {};
+        , m_points({}) { };
 
     BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf = 8);
 

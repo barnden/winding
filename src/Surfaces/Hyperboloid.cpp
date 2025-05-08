@@ -1,9 +1,4 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
- #include <numbers>
+#include <numbers>
 
 #include "Surfaces/Surface.h"
 #include "utils.h"
@@ -11,7 +6,7 @@
 using std::numbers::pi;
 
 Hyperboloid::Hyperboloid()
-    : ParametricSurface(0., 2. * pi, 0., 1.) {};
+    : ParametricSurface(0., 2. * pi, 0., 1.) { };
 
 Vec3 Hyperboloid::f(Vec2 const& p) const
 {

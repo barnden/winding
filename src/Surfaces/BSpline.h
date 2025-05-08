@@ -1,15 +1,11 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #pragma once
 
 #include <iostream>
 #include <string>
+
+#include "Config.h"
 #include "Surfaces/Surface.h"
 #include "utils.h"
-#include "Config.h"
 
 class CubicBSpline : public ParametricSurface {
     std::vector<std::vector<Vec3>> m_points;
@@ -42,7 +38,8 @@ public:
         , m_points(std::move(data))
         , m_nu(nu)
         , m_nv(nv)
-    {}
+    {
+    }
 
     void read(std::string const& file);
 

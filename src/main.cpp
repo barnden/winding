@@ -1,12 +1,7 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
+#include <Eigen/Dense>
+
 #include "Config.h"
 #include "SurfaceEditor.h"
-
-#include <Eigen/Dense>
 
 #ifdef STANDALONE
 int main(int argc, char* argv[])

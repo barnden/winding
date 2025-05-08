@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #if USE_QPMAD
 #    include <qpmad/solver.h>
 #else
@@ -245,7 +240,8 @@ void SurfaceEditor::step(
 
     std::println("[Editor] Solved least-norm QP (deltaC L2: {})", deltaC.norm());
 
-    auto augmented_control_points = std::vector(m_surface.m_nv, std::vector<Vec3>(m_surface.m_nu));
+    auto augmented_control_points = std::vector(m_surface.m_nv, std::vector<Vec3>(m_surface.m_nu, Vec3::Zero()));
+
     {
         auto index = 0;
         for (auto i = 0; i < m_surface.m_nv; i++) {

@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #include <numbers>
 
 #include "Surfaces/Surface.h"
@@ -14,7 +9,7 @@ Spring::Spring(double r1, double r2, double kh)
     : ParametricSurface(0., 2. * pi, 0., 4. * pi)
     , m_r1(r1)
     , m_r2(r2)
-    , m_kh(kh) {};
+    , m_kh(kh) { };
 
 Vec3 Spring::f(Vec2 const& p) const
 {
