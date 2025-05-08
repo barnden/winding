@@ -1,21 +1,15 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #pragma once
-#ifndef COMPOSER_H
-#    define COMPOSER_H
 
-#    include "Surfaces/Surface.h"
-#    include "utils.h"
+#include <memory>
+#include <print>
+#include <vector>
 
-#    include <memory>
-#    include <print>
-#    include <vector>
+#include "Surfaces/Surface.h"
+#include "ThreadPool.h"
+#include "utils.h"
 
-#    define SF_OFF            0.001
-#    define ANGLE_SPEED_CONST 2.0
+#define SF_OFF            0.001
+#define ANGLE_SPEED_CONST 2.0
 
 struct LocalFrame {
     Vec3 position;
@@ -124,6 +118,8 @@ class Composer {
     int m_num_paths;
     int m_num_particles;
 
+    ThreadPool<std::function<void()>> m_thread_pool;
+
 public:
     Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles);
 
@@ -162,5 +158,3 @@ public:
     decltype(auto) winding_order() const { return m_winding_order; }
     decltype(auto) surface() const { return m_surface; }
 };
-
-#endif

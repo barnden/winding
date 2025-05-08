@@ -1,13 +1,8 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-#include "Simulator.h"
-#include "Config.h"
-
 #include <Eigen/Sparse>
 #include <print>
+
+#include "Config.h"
+#include "Simulator.h"
 
 using MatrixSd = Eigen::SparseMatrix<double>;
 using Vector = Eigen::VectorXd;
@@ -38,10 +33,10 @@ Simulator::Simulator(
     Vec2 dp = (p1 - p0) / (m_size - 1.);
 
     for (int i = 0; i < m_size; i++)
-        m_position_initial[i] = p0 + (double)i * dp;
+        m_position_initial[i].noalias() = p0 + (double)i * dp;
 }
 
-void Simulator::simulate(int num_iterations)
+int Simulator::simulate(int num_iterations)
 {
     int i;
     for (i = 0; (i < num_iterations && i < 10) || (i < num_iterations && !stop()); i++) {
@@ -49,7 +44,7 @@ void Simulator::simulate(int num_iterations)
         step();
     }
 
-    std::println("[Simulator] {} iterations simulated.", i);
+    return i;
 }
 
 OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path)
@@ -173,7 +168,10 @@ void OffSurface::step()
     Eigen::VectorXd A = forces - dJ * varr;
     Eigen::VectorXd V = JT.transpose() * varr;
 
-    barr = (JT * V) + (m_timestep * JT * A);
+    // barr = (JT * V) + (m_timestep * JT * A);
+    barr = JT * V;
+    barr.noalias() += m_timestep * JT * A;
+
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
     solver.factorize(mat);

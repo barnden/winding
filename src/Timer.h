@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-
 #include <chrono>
 #include <string_view>
 
@@ -15,7 +9,7 @@ class Timer {
 public:
     Timer(std::string_view name, bool print_on_destruct = true);
 
-    auto elapsed() const;
+    auto elapsed() const -> double;
     void print() const;
     ~Timer();
 };

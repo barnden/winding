@@ -1,11 +1,4 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #pragma once
-#ifndef SIMULATOR_H
-#define SIMULATOR_H
 
 #include "Surfaces/Surface.h"
 #include "utils.h"
@@ -30,7 +23,7 @@ public:
     virtual void step() = 0;
     virtual bool stop() = 0;
 
-    void simulate(int num_iterations);
+    int simulate(int num_iterations);
 
     decltype(auto) size() const { return m_size; }
     decltype(auto) surface() { return m_surface; }
@@ -64,5 +57,3 @@ public:
     auto& r() { return m_r; }
     auto& l() { return m_l; }
 };
-
-#endif

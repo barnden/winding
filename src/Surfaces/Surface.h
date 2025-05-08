@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
 #pragma once
 
 #include <Eigen/Dense>
@@ -13,7 +8,6 @@
 
 class ParametricSurface {
     mutable BVH m_bvh;
-    void generate_search_grid(int nu, int nv) const;
 
 protected:
     double m_u_min;
@@ -31,6 +25,7 @@ public:
     ParametricSurface(double epsilon = 1e-5);
     ParametricSurface(double u_min, double u_max, double v_min, double v_max, double epsilon = 1e-5);
 
+    void generate_search_grid(int nu, int nv) const;
     [[nodiscard]] virtual Vec3 f(Vec2 const& p) const = 0;
     [[nodiscard]] virtual Vec3 f_u(Vec2 const& p) const;
     [[nodiscard]] virtual Vec3 f_v(Vec2 const& p) const;

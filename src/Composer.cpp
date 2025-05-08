@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-
 #include <format>
 #include <fstream>
 #include <numbers>
@@ -104,6 +98,7 @@ Composer::Composer(ParametricSurface const& surface, double num_revolutions, int
     : m_surface(surface)
     , m_num_paths(num_paths)
     , m_num_particles(num_particles)
+    , m_thread_pool()
 {
     auto u_range = surface.u_max() - surface.u_min();
     auto v_range = surface.v_max() - surface.v_min();
@@ -335,20 +330,41 @@ auto Composer::simulate(
     auto orders = std::vector<std::vector<int>>(m_initial.size());
 
     {
+        m_surface.generate_search_grid(1000, 1000);
+
+        size_t completed = 0;
+        std::mutex mutex;
         auto execution_timer = Timer("Simulation");
+
         for (auto&& [j, i] : enumerate(m_winding_order)) {
-            auto simulator = OffSurface(m_surface, m_initial[i]);
+            m_thread_pool.queue([&] {
+                auto timer = Timer("", false);
+                auto simulator = OffSurface(m_surface, m_initial[i]);
 
-            simulator.spring_constant() = spring_constant;
-            simulator.damping_coefficient() = damping_coefficient;
-            simulator.timestep() = timestep;
-            simulator.epsilon() = epsilon;
+                simulator.spring_constant() = spring_constant;
+                simulator.damping_coefficient() = damping_coefficient;
+                simulator.timestep() = timestep;
+                simulator.epsilon() = epsilon;
 
-            simulator.simulate(1000);
-            simulator.mapping();
+                auto iterations = simulator.simulate(1000);
+                simulator.mapping();
 
-            paths[i] = simulator.p();
-            orders[i] = simulator.r();
+                {
+                    auto lock = std::unique_lock(mutex);
+
+                    std::println(
+                        "[Simulator] Path {:4} simulated in {:4} iterations (time: {:.2f} ms)",
+                        i, iterations, timer.elapsed() / 1000.);
+
+                    paths[i] = simulator.p();
+                    orders[i] = simulator.r();
+                    completed++;
+                }
+            });
+        }
+
+        while (m_thread_pool.busy() || completed != m_winding_order.size()) {
+            continue;
         }
     }
 
