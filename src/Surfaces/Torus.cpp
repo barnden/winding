@@ -1,13 +1,17 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
+#include <numbers>
+
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
+using std::numbers::pi;
+
 Torus::Torus(double r1, double r2)
-    : ParametricSurface(0., 2. * PI, 0., 2. * PI - 0.001)
+    : ParametricSurface(0., 2. * pi, 0., 2. * pi - 0.001)
     , m_r1(r1)
     , m_r2(r2) {};
 

@@ -6,7 +6,7 @@
 #include "Config.h"
 #include <filesystem>
 #include <format>
-#include <iostream>
+#include <print>
 
 namespace fs = std::filesystem;
 using namespace std::literals;
@@ -22,11 +22,23 @@ bool alternate_push_pull = false;
 
 bool use_bvh = true;
 bool use_ray_shoot_mapping = true;
-bool use_winding_order;
 
-// TODO: Add argparser for this
+// TODO: Add argparser for the following options
 int sphere_tracing_iterations = 5;
-double friction_coefficient = .0;
+double friction_coefficient = 0.;
+
+// NOTE: The original code had a way of generating the order for winding paths
+// (see Composer.cpp), however, I have no idea how it works. It does _not_ affect
+// anything else other than the ordering of the paths.
+bool use_winding_order = false;
+
+// NOTE: As stated in the paper, outlier threshold of 4 times IQR was a reasonable
+// guess for most shapes. This number should be tuned for each surface.
+double outlier_threshold = 4.;
+
+// NOTE: This is the number of particles we create along each edge of the midpoint
+// quadrilateral in each quad. Ideally this should be adaptive to the side length.
+int pull_in_particles_per_path = 35;
 }
 
 void Config::argparse(int argc, char* argv[])
@@ -48,12 +60,12 @@ void Config::argparse(int argc, char* argv[])
     use_ray_shoot_mapping = !flags.contains('R');
 
     if (push_out && pull_in && !alternate_push_pull) {
-        std::cout << "[Config] 'push_out' and 'pull_in' specified without 'alternate_push_pull', defaulting to 'push_out'\n";
+        std::println("[Config] 'push_out' and 'pull_in' specified without 'alternate_push_pull', defaulting to 'push_out'");
         pull_in = false;
     }
 
     if (!push_out && !pull_in) {
-        std::cout << "[Config] Neither 'push_out' nor 'pull_in' were specified, defaulting to 'push_out'\n";
+        std::println("[Config] Neither 'push_out' nor 'pull_in' were specified, defaulting to 'push_out'");
         push_out = true;
     }
 
@@ -62,7 +74,7 @@ void Config::argparse(int argc, char* argv[])
 
     fs::create_directories(std::format("{}/{}", out_directory, experiment));
 
-    for (auto&& directory : { "spline"sv, "path"sv, "max_quad"sv, "mesh"sv }) {
+    for (auto&& directory : { "spline"sv, "path"sv, "mesh"sv }) {
         auto path = std::format("{}/{}/{}", out_directory, experiment, directory);
         fs::create_directory(path);
     }

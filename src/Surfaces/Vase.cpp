@@ -1,13 +1,17 @@
 /*
- * Copyright (c) 2024, Brandon G. Nguyen <brandon@nguyen.vc>
+ * Copyright (c) 2024-2025, Brandon G. Nguyen <brandon@nguyen.vc>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
+#include <numbers>
+
 #include "Surfaces/Surface.h"
 #include "utils.h"
 
+using std::numbers::pi;
+
 Vase::Vase()
-    : ParametricSurface(0., 2. * PI, -1., 1.) {};
+    : ParametricSurface(0., 2. * pi, -1., 1.) {};
 
 Vec3 Vase::f(Vec2 const& p) const
 {

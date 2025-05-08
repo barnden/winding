@@ -5,7 +5,6 @@
  */
 #pragma once
 
-#include "utils.h"
 #include <string_view>
 
 namespace Config {
@@ -23,6 +22,8 @@ extern bool use_ray_shoot_mapping;
 extern bool use_winding_order;
 extern int sphere_tracing_iterations;
 extern double friction_coefficient;
+extern double outlier_threshold;
+extern int pull_in_particles_per_path;
 
 void argparse(int argc, char* argv[]);
 };

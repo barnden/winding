@@ -16,10 +16,10 @@ class ParametricSurface {
     void generate_search_grid(int nu, int nv) const;
 
 protected:
-    double m_uMin;
-    double m_uMax;
-    double m_vMin;
-    double m_vMax;
+    double m_u_min;
+    double m_u_max;
+    double m_v_min;
+    double m_v_max;
 
     double m_epsilon;
 
@@ -46,6 +46,7 @@ public:
     [[nodiscard]] Vec3 nf_vv(Vec2 const& p) const;
 
     [[nodiscard]] auto sdf(Vec3 const& p) const -> double;
+    [[nodiscard]] auto sdf(Vec3 const& p, Vec2&) const -> double;
 
     [[nodiscard]] Vec2 rescale(Vec2 const& p) const;
 
@@ -56,10 +57,10 @@ public:
     friend auto hausdorff_distance(ParametricSurface const&, ParametricSurface const&) -> double;
     friend auto percent_difference(ParametricSurface const&, ParametricSurface const&) -> double;
 
-    double u_max() const { return m_uMax; }
-    double u_min() const { return m_uMin; }
-    double v_max() const { return m_vMax; }
-    double v_min() const { return m_vMin; }
+    double u_max() const { return m_u_max; }
+    double u_min() const { return m_u_min; }
+    double v_max() const { return m_v_max; }
+    double v_min() const { return m_v_min; }
 };
 
 class Hyperboloid : public ParametricSurface {

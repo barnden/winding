@@ -7,8 +7,7 @@
 #include "Config.h"
 
 #include <Eigen/Sparse>
-#include <iostream>
-#include <ranges>
+#include <print>
 
 using MatrixSd = Eigen::SparseMatrix<double>;
 using Vector = Eigen::VectorXd;
@@ -19,13 +18,11 @@ Simulator::Simulator(
     std::vector<Vec2> const& init_path)
     : m_size(201)
     , m_surface(f)
-    , m_ksp(1'000'000)
-    , m_kdp(200)
-    , m_kpf(10'000)
-    , m_kbs(0.001)
-    , m_dt(0.001)
+    , m_spring_constant(1'000'000)
+    , m_damping_coefficient(200)
+    , m_timestep(0.001)
     , m_t(0.)
-    , m_v_eps(0.001)
+    , m_epsilon(0.001)
 {
     if (!init_path.empty()) {
         m_size = init_path.size();
@@ -34,7 +31,7 @@ Simulator::Simulator(
         return;
     }
 
-    m_position_initial = decltype(m_position_initial)(m_size, Vec2::Zero());
+    m_position_initial = std::vector<Vec2>(m_size);
 
     Vec2 p0(0., -1.);
     Vec2 p1(9.43347686131086, 0.9965750445589878);
@@ -48,21 +45,21 @@ void Simulator::simulate(int num_iterations)
 {
     int i;
     for (i = 0; (i < num_iterations && i < 10) || (i < num_iterations && !stop()); i++) {
-        m_t += m_dt;
+        m_t += m_timestep;
         step();
     }
 
-    std::cout << i << " iterations simulated.\n";
+    std::println("[Simulator] {} iterations simulated.", i);
 }
 
 OffSurface::OffSurface(ParametricSurface const& f, std::vector<Vec2> const& init_path)
     : Simulator(f, init_path)
 {
     m_position = m_position_initial;
-    m_velocity = decltype(m_velocity)(size(), Vec2::Zero());
-    m_touching = decltype(m_touching)(size(), true);
-    m_l = decltype(m_l)(size(), 1);
-    m_r = decltype(m_r)(size(), 1);
+    m_velocity = std::vector<Vec2>(size());
+    m_touching = std::vector(size(), true);
+    m_l = std::vector(size(), 1);
+    m_r = std::vector(size(), 1);
 }
 
 void OffSurface::step()
@@ -85,9 +82,9 @@ void OffSurface::step()
     Vector varr(2 * N);
     Vector barr;
 
-    std::vector<Triplet> JT_ele(6 * N, Triplet());
-    std::vector<Triplet> dJ_ele(6 * N, Triplet());
-    std::vector<Triplet> Mh2K_ele(9 * N - 12);
+    auto JT_ele = std::vector(6 * N, Triplet());
+    auto dJ_ele = std::vector(6 * N, Triplet());
+    auto Mh2K_ele = std::vector(9 * N - 12, Triplet());
 
     for (auto&& [i, pidx] : enumerate(touching)) {
         Vec2 const& p = m_position[pidx];
@@ -142,23 +139,23 @@ void OffSurface::step()
         int const& L = m_l[pidx];
         int const& R = m_r[pidx];
 
-        double tmp = 1. + (1. / L + 1. / R) * m_ksp * m_dt * m_dt + m_kdp * m_dt;
+        double tmp = 1. + ((1. / L + 1. / R) * m_spring_constant * m_timestep + m_damping_coefficient) * m_timestep;
         Mh2K_ele[idx - 6] = Triplet(3 * i + 0, 3 * i + 0, tmp);
         Mh2K_ele[idx - 3] = Triplet(3 * i + 1, 3 * i + 1, tmp);
         Mh2K_ele[idx + 0] = Triplet(3 * i + 2, 3 * i + 2, tmp);
 
-        tmp = -m_ksp * m_dt * m_dt / L;
+        tmp = -m_spring_constant * m_timestep * m_timestep / L;
         Mh2K_ele[idx - 5] = Triplet(3 * i + 0, 3 * i - 3, tmp);
         Mh2K_ele[idx - 2] = Triplet(3 * i + 1, 3 * i - 2, tmp);
         Mh2K_ele[idx + 1] = Triplet(3 * i + 2, 3 * i - 1, tmp);
 
-        tmp = -m_ksp * m_dt * m_dt / R;
+        tmp = -m_spring_constant * m_timestep * m_timestep / R;
         Mh2K_ele[idx - 4] = Triplet(3 * i + 0, 3 * i + 3, tmp);
         Mh2K_ele[idx - 1] = Triplet(3 * i + 1, 3 * i + 4, tmp);
         Mh2K_ele[idx + 2] = Triplet(3 * i + 2, 3 * i + 5, tmp);
 
         // clang-format off
-        Vec3 force = m_ksp
+        Vec3 force = m_spring_constant
                    * (1. / L * (surface().f(m_position[pidx - L]) - surface().f(p))
                    +  1. / R * (surface().f(m_position[pidx + R]) - surface().f(p)));
         // clang-format on
@@ -171,15 +168,21 @@ void OffSurface::step()
     Mh2K.setFromTriplets(Mh2K_ele.begin(), Mh2K_ele.end());
 
     mat = JT * Mh2K * JT.transpose();
+
+    // World space acceleration and velocity
     Eigen::VectorXd A = forces - dJ * varr;
     Eigen::VectorXd V = JT.transpose() * varr;
-    barr = (JT * V) + (m_dt * JT * A);
+
+    barr = (JT * V) + (m_timestep * JT * A);
     Eigen::SparseLU<MatrixSd, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(mat);
     solver.factorize(mat);
 
     if (solver.info() != Eigen::Success) {
-        std::cout << "Failed to factorize matrix (info: " << solver.info() << ") (col:" << mat.cols() << ')' << std::endl;
+        std::println(
+            "Failed to factorize matrix (info: {}) (matrix dimensions: {} x {})",
+            static_cast<int>(solver.info()), mat.rows(), mat.cols());
+
         exit(EXIT_FAILURE);
     }
 
@@ -191,15 +194,17 @@ void OffSurface::step()
         Vec2 velocity = varr.segment<2>(2 * i);
 
         if (Config::friction_coefficient > 0.) {
+            // Equation 4.19 in Li's disseration
             Vec3 acceleration = A.segment<3>(3 * i);
+            Vec3 velocity = V.segment<3>(3 * i);
             auto a_dot_n = std::abs(acceleration.dot(surface().normal(m_position[idx])));
-            auto friction = (m_dt * Config::friction_coefficient * a_dot_n) / V.segment<3>(3 * i).norm();
+            auto friction = (m_timestep * Config::friction_coefficient * a_dot_n) / velocity.norm();
 
             velocity *= std::max(1. - friction, 0.);
         }
 
         m_velocity[idx] = velocity;
-        m_position[idx] += m_velocity[idx] * m_dt;
+        m_position[idx] += m_velocity[idx] * m_timestep;
     }
 
     lifting();
@@ -209,8 +214,16 @@ void OffSurface::step()
 
 bool OffSurface::stop()
 {
+    auto stopping_criteria =
+        [&](auto i) {
+            Eigen::Matrix<double, 3, 2> mat;
+            mat << surface().f_u(m_position[i]), surface().f_v(m_position[i]);
+
+            return (mat * m_velocity[i]).norm() > m_epsilon;
+        };
+
     for (int i = 0; i < size(); i++)
-        if (m_touching[i] && (m_velocity[i].x() * surface().f_u(m_position[i]) + m_velocity[i].y() * surface().f_v(m_position[i])).norm() > m_v_eps)
+        if (m_touching[i] && stopping_criteria(i))
             return false;
 
     return true;
@@ -240,10 +253,9 @@ void OffSurface::mapping()
                 Vec3 world = s * p1 + (1. - s) * p0;
 
                 Vec3 p = world;
-                Vec2 uv;
                 auto t = 0.;
                 for (auto j = 0; j < Config::sphere_tracing_iterations; j++) {
-                    auto h = surface().sdf(p, uv);
+                    auto h = surface().sdf(p);
 
                     if (std::abs(h) < 1e-3)
                         break;
