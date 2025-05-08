@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <chrono>
 #include <format>
 #include <fstream>
 #include <numbers>
@@ -13,53 +12,108 @@
 #include "Composer.h"
 #include "Config.h"
 #include "Simulator.h"
+#include "Timer.h"
 
 using std::numbers::pi;
 
 IntersectionList::IntersectionList()
 {
-    head = new IntersectionNode();
-    rear = new IntersectionNode();
+    head = std::make_shared<node_t>();
+    rear = std::make_shared<node_t>();
 
     head->is_end = true;
     rear->is_end = true;
 }
 
-void IntersectionList::insert(IntersectionNode* node, IntersectionNode* IntersectionNode::* prev, IntersectionNode* IntersectionNode::* next, double IntersectionNode::* value) const
+// Sorry for the abomination of pointer-to-member syntax
+// Can't use 'ptr->*ptr_to_member' because we wrapped with smart pointer
+// So must dereference smart pointer with *ptr then use .* to get member.
+void IntersectionList::insert(
+    nodeptr_t node,
+    nodeptr_t node_t::* prev,
+    nodeptr_t node_t::* next,
+    double node_t::* value) const
 {
-    IntersectionNode* p = head;
-    while (p->*next != rear && (p->*next)->*value < node->*value) {
-        p = p->*next;
+    nodeptr_t p = head;
+    while (*p.*next != rear && *((*p).*next).*value < *node.*value) {
+        p = *p.*next;
     }
 
-    node->*prev = p;
-    node->*next = p->*next;
+    *node.*prev = p;
+    *node.*next = *p.*next;
 
-    (p->*next)->*prev = node;
-    p->*next = node;
+    *(*p.*next).*prev = node;
+    *p.*next = node;
 }
 
-void IntersectionList::interpolate(double t, double& dist, double& angle, IntersectionNode* IntersectionNode::* next, double IntersectionNode::* value) const
+void IntersectionList::interpolate(
+    double t,
+    double& dist,
+    double& angle,
+    nodeptr_t node_t::* next,
+    double node_t::* value) const
 {
-    IntersectionNode* p = head->*next;
+    nodeptr_t p = *head.*next;
 
-    double lambda = (t - p->*value) / ((p->*next)->*value - p->*value);
-    dist = lambda * (p->*next)->dist_score + (1. - lambda) * p->dist_score;
-    angle = lambda * (p->*next)->angle_score + (1. - lambda) * p->angle_score;
+    double lambda = (t - *p.*value) / (*(*p.*next).*value - *p.*value);
+    dist = lambda * (*p.*next)->dist_score + (1. - lambda) * p->dist_score;
+    angle = lambda * (*p.*next)->angle_score + (1. - lambda) * p->angle_score;
+}
+
+IntersectionListUp::IntersectionListUp()
+    : IntersectionList()
+{
+    head->t_up = -Infinity;
+    rear->t_up = Infinity;
+
+    head->next_up = rear;
+    rear->prev_up = head;
+}
+
+[[gnu::flatten]] void IntersectionListUp::insert(nodeptr_t node) const
+{
+    IntersectionList::insert(node, &node_t::prev_up, &node_t::next_up, &node_t::t_up);
+}
+
+[[gnu::flatten]] void IntersectionListUp::interpolate(double t, double& dist, double& angle) const
+{
+    IntersectionList::interpolate(t, dist, angle, &node_t::next_up, &node_t::t_up);
+}
+
+IntersectionListDown::IntersectionListDown()
+    : IntersectionList()
+{
+    head->t_down = -Infinity;
+    rear->t_down = Infinity;
+
+    head->next_down = rear;
+    rear->prev_down = head;
+}
+
+[[gnu::flatten]] void IntersectionListDown::insert(nodeptr_t node) const
+{
+    IntersectionList::insert(node, &node_t::prev_down, &node_t::next_down, &node_t::t_down);
+}
+
+[[gnu::flatten]] void IntersectionListDown::interpolate(double t, double& dist, double& angle) const
+{
+    IntersectionList::interpolate(t, dist, angle, &node_t::next_down, &node_t::t_down);
 }
 
 Composer::Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles)
     : m_surface(surface)
     , m_num_paths(num_paths)
     , m_num_particles(num_particles)
-    , m_l_turn(0.3)
 {
-    auto angle = (surface.v_max() - surface.v_min()) / (surface.u_max() - surface.u_min()) / num_revolutions;
-    auto du = (surface.u_max() - surface.u_min()) / num_paths;
-    auto ddv = (surface.v_max() - surface.v_min()) / (num_particles + 1);
+    auto u_range = surface.u_max() - surface.u_min();
+    auto v_range = surface.v_max() - surface.v_min();
+
+    auto angle = v_range / u_range / num_revolutions;
+    auto du = u_range / num_paths;
+    auto ddv = v_range / (num_particles + 1);
     auto ddu = ddv / angle;
 
-    m_initial = std::vector<std::vector<Vec2>>(2 * num_paths, std::vector<Vec2>(num_particles));
+    m_initial = std::vector(2 * num_paths, std::vector<Vec2>(num_particles));
 
     for (auto i = 0; i < num_paths; i++) {
         Vec2 p(surface.u_min() + i * du, surface.v_min());
@@ -133,9 +187,11 @@ auto Composer::intersect(
     return true;
 }
 
-auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& down) -> std::vector<IntersectionNode*>
+auto Composer::intersect(
+    std::vector<Vec2> const& up,
+    std::vector<Vec2> const& down) -> std::vector<IntersectionNode::ptr_t>
 {
-    std::vector<IntersectionNode*> result;
+    std::vector<IntersectionNode::ptr_t> result;
 
     auto i = 0uz;
     auto j = down.size() - 1uz;
@@ -145,7 +201,7 @@ auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& d
         double t_down;
 
         if (intersect(up[i], up[i + 1], down[j - 1], down[j], intersection, t_up, t_down)) {
-            auto* p = new IntersectionNode();
+            auto p = std::make_shared<IntersectionNode>();
 
             p->t_up = t_up + i;
             p->t_down = t_down + j - 1.;
@@ -168,7 +224,7 @@ auto Composer::intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& d
     return result;
 }
 
-void Composer::score_ends(IntersectionNode* p)
+void Composer::score_ends(IntersectionNode::ptr_t p)
 {
     if (p->is_end)
         return;
@@ -211,7 +267,7 @@ void Composer::score_ends(IntersectionNode* p)
     }
 }
 
-auto Composer::score(IntersectionNode* p) -> double
+auto Composer::score(IntersectionNode::ptr_t p) -> double
 {
     if (p->prev_up->is_end || p->prev_down->is_end || p->next_up->is_end || p->next_down->is_end)
         return 0.;
@@ -228,12 +284,49 @@ auto Composer::score(IntersectionNode* p) -> double
     return p->dist_score;
 }
 
+void create_quadmesh(
+    std::vector<Quad>& quads,
+    std::vector<IntersectionListUp> const& up_list,
+    int step)
+{
+    auto outpath = std::format("{}/{}/mesh/step-{}.obj", Config::out_directory, Config::experiment, step);
+    auto ostream = std::ofstream(outpath);
+    for (auto& ls : up_list) {
+        auto p = ls.head;
+        while (p != ls.rear) {
+            if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                auto quad = Quad { p->point,
+                                   p->next_up->point,
+                                   p->next_up->next_down->point,
+                                   p->next_up->next_down->prev_up->point };
+
+                quads.push_back(quad);
+
+                std::println(ostream, "v {}\nv {}\nv {}\nv {}", quad.p0, quad.p1, quad.p2, quad.p3);
+            }
+            p = p->next_up;
+        }
+    }
+
+    int cnt = 1;
+    for (auto& ls : up_list) {
+        auto p = ls.head;
+        while (p != ls.rear) {
+            if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
+                std::println(ostream, "f {} {} {} {}", cnt, cnt + 1, cnt + 2, cnt + 3);
+                cnt += 4;
+            }
+            p = p->next_up;
+        }
+    }
+}
+
 auto Composer::simulate(
     double timestep,
     double spring_constant,
     double damping_coefficient,
     double epsilon,
-    int step)
+    int step) -> std::vector<LocalFrame>
 {
     generate_winding_order();
     quads = std::vector<Quad>();
@@ -241,43 +334,48 @@ auto Composer::simulate(
     auto paths = std::vector<std::vector<Vec2>>(m_initial.size());
     auto orders = std::vector<std::vector<int>>(m_initial.size());
 
-    auto start = std::chrono::steady_clock::now();
+    {
+        auto execution_timer = Timer("Simulation");
+        for (auto&& [j, i] : enumerate(m_winding_order)) {
+            auto simulator = OffSurface(m_surface, m_initial[i]);
 
-    for (auto&& [j, i] : enumerate(m_winding_order)) {
-        auto simulator = OffSurface(m_surface, m_initial[i]);
+            simulator.spring_constant() = spring_constant;
+            simulator.damping_coefficient() = damping_coefficient;
+            simulator.timestep() = timestep;
+            simulator.epsilon() = epsilon;
 
-        simulator.spring_constant() = spring_constant;
-        simulator.damping_coefficient() = damping_coefficient;
-        simulator.timestep() = timestep;
-        simulator.epsilon() = epsilon;
+            simulator.simulate(1000);
+            simulator.mapping();
 
-        simulator.simulate(1000);
-        simulator.mapping();
-
-        paths[i] = simulator.p();
-        orders[i] = simulator.r();
-    }
-
-    auto end = std::chrono::steady_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    std::println("[Timing] Execution time: {} us", duration.count());
-
-    auto start_meshing = std::chrono::steady_clock::now();
-    std::vector<IntersectionListUp> up_list(m_initial.size() / 2);
-    std::vector<IntersectionListDown> down_list(m_initial.size() / 2);
-
-    for (auto i = 0u; i < m_initial.size() / 2; i++) {
-        for (auto j = 0u; j < m_initial.size() / 2; j++) {
-            auto result = intersect(paths[2 * i + 1], paths[2 * j]);
-            for (auto&& p : result) {
-                up_list[i].insert(p);
-                down_list[j].insert(p);
-            }
+            paths[i] = simulator.p();
+            orders[i] = simulator.r();
         }
     }
 
+    std::vector<IntersectionListUp> up_list(m_initial.size() / 2);
+    std::vector<IntersectionListDown> down_list(m_initial.size() / 2);
+
+    {
+        // This timer is somewhat unfair as the majority of the time is
+        // taken up by I/O in create_quadmesh()
+        auto meshing_timer = Timer("Meshing");
+
+        // Find intersections
+        for (auto i = 0u; i < m_initial.size() / 2; i++) {
+            for (auto j = 0u; j < m_initial.size() / 2; j++) {
+                auto result = intersect(paths[2 * i + 1], paths[2 * j]);
+                for (auto&& p : result) {
+                    up_list[i].insert(p);
+                    down_list[j].insert(p);
+                }
+            }
+        }
+
+        // Detect cycles
+        create_quadmesh(quads, up_list, step);
+    }
+
+    // Compute path distance/angles
     for (auto&& ls : up_list) {
         for (auto p = ls.head->next_up; p != ls.rear; p = p->next_up)
             score(p);
@@ -292,49 +390,6 @@ auto Composer::simulate(
         score_ends(ls.head->next_down);
         score_ends(ls.rear->prev_down);
     }
-
-    {
-        auto outpath = std::format("{}/{}/mesh/step-{}.obj", Config::out_directory, Config::experiment, step);
-        auto ostream = std::ofstream(outpath);
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    auto quad = Quad { p->point,
-                                       p->next_up->point,
-                                       p->next_up->next_down->point,
-                                       p->next_up->next_down->prev_up->point };
-
-                    quads.push_back(quad);
-                    if (quad.area > max_area) {
-                        max_area = quad.area;
-                        max_quad = quad;
-                    }
-
-                    std::println(ostream, "v {}\nv {}\nv {}\nv {}", quad.p0, quad.p1, quad.p2, quad.p3);
-                }
-                p = p->next_up;
-            }
-        }
-
-        std::println("[Debug] Max quad area: {}", max_area);
-
-        int cnt = 1;
-        for (auto& ls : up_list) {
-            auto p = ls.head;
-            while (p != ls.rear) {
-                if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                    std::println(ostream, "f {} {} {} {}", cnt, cnt + 1, cnt + 2, cnt + 3);
-                    cnt += 4;
-                }
-                p = p->next_up;
-            }
-        }
-    }
-
-    auto end_meshing = std::chrono::steady_clock::now();
-    auto duration_meshing = std::chrono::duration_cast<std::chrono::microseconds>(end_meshing - start_meshing);
-    std::println("[Timing] Meshing: {} us", duration_meshing.count());
 
     auto motion = std::vector<LocalFrame> {};
     motion.reserve(2 * m_num_paths * m_num_particles);
@@ -495,7 +550,6 @@ void Composer::generate_winding_order()
 
     delete[] nodes;
 }
-
 
 void Composer::interpolate(
     LocalFrame& frame,

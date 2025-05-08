@@ -5,10 +5,7 @@
  */
 #include "BVH.h"
 #include "BVH/Morton.h"
-#include <iostream>
-#include <stack>
-#include <unordered_map>
-#include <unordered_set>
+#include <deque>
 
 inline auto create_morton_curve(std::vector<Vec3> const& points) -> std::vector<std::pair<Morton::Code, size_t>>
 {
@@ -78,13 +75,13 @@ BVH::BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf)
     m_root = leaves.front();
 }
 
-double distance(AABB const& volume, Vec3 const& p)
+auto distance(AABB const& volume, Vec3 const& p) -> double
 {
     Vec3 x = p.cwiseMax(volume.min()).cwiseMin(volume.max());
     return (x - p).squaredNorm();
 }
 
-[[gnu::hot]] size_t BVH::closest_point(Vec3 const& x) const
+[[gnu::hot]] auto BVH::closest_point(Vec3 const& x) const -> size_t
 {
     auto nodes = std::deque<std::shared_ptr<BVHNode>> { m_root };
 

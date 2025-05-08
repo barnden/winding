@@ -141,7 +141,12 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, size_t max_iterations) cons
     return closest_point(p, m_grid2D[id], max_iterations);
 }
 
-Vec2 ParametricSurface::intersection_point(Vec3 const& o, Vec3 const& d, Vec2 const& p_guess, double const t_guess, size_t max_iterations) const
+Vec2 ParametricSurface::intersection_point(
+    Vec3 const& o,
+    Vec3 const& d,
+    Vec2 const& p_guess,
+    double const t_guess,
+    size_t max_iterations) const
 {
     Vec2 xk = p_guess;
     double tk = t_guess;
@@ -187,7 +192,10 @@ Vec2 ParametricSurface::intersection_point(Vec3 const& o, Vec3 const& d, Vec2 co
     return xk;
 }
 
-Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t max_iterations) const
+Vec2 ParametricSurface::closest_point(
+    Vec3 const& p,
+    Vec2 const& guess,
+    size_t max_iterations) const
 {
     Vec2 xk = guess;
 
@@ -218,7 +226,9 @@ Vec2 ParametricSurface::closest_point(Vec3 const& p, Vec2 const& guess, size_t m
     return xk;
 }
 
-auto hausdorff_distance(ParametricSurface const& surfaceA, ParametricSurface const& surfaceB) -> double
+auto hausdorff_distance(
+    ParametricSurface const& surfaceA,
+    ParametricSurface const& surfaceB) -> double
 {
     static auto rd = std::random_device();
     static auto generator = std::mt19937(rd());
@@ -242,7 +252,9 @@ auto hausdorff_distance(ParametricSurface const& surfaceA, ParametricSurface con
     return hausdorff;
 }
 
-auto percent_difference(ParametricSurface const& surfaceA, ParametricSurface const& surfaceB) -> double
+auto percent_difference(
+    ParametricSurface const& surfaceA,
+    ParametricSurface const& surfaceB) -> double
 {
     surfaceA.generate_search_grid(1024, 1024);
     surfaceB.generate_search_grid(1024, 1024);

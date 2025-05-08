@@ -33,5 +33,5 @@ public:
 
     BVH(std::vector<Vec3> const& points, size_t num_points_per_leaf = 8);
 
-    size_t closest_point(Vec3 const& x) const;
+    auto closest_point(Vec3 const& x) const -> size_t;
 };

@@ -14,8 +14,8 @@
 class CubicBSpline : public ParametricSurface {
     std::vector<std::vector<Vec3>> m_points;
 
-    [[nodiscard]] inline std::tuple<double, double, int, int> get_uv(Vec2 const& p) const;
-    [[nodiscard]] inline Eigen::RowVector3d get(int v, int u) const;
+    [[nodiscard]] inline auto get_uv(Vec2 const& p) const -> std::tuple<double, double, int, int>;
+    [[nodiscard]] inline auto get(int v, int u) const -> Eigen::RowVector3d;
 
     template <typename UFunc, typename FFunc>
     [[gnu::flatten]] Vec3 interpolate(UFunc&& get_u, FFunc&& get_v, Vec2 const& p) const;

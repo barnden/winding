@@ -13,18 +13,15 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
 {
     Vec2 uv = p;
 
-    while (uv.x() < 0.)
-        uv.x() += m_u_max;
+    uv.x() = std::fmod(std::fmod(uv.x(), m_u_max) + m_u_max, m_u_max);
 
+    // Get the Bezier patch
     auto iu = (int)uv.x();
     auto iv = (int)uv.y();
 
-    if (iv == m_nv - 1)
-        iv--;
+    iv = std::clamp(iv, 2, m_nv - 2);
 
-    if (iv == 1)
-        iv++;
-
+    // Get the local u/v coordinates on the Bezier patch
     uv.x() -= iu;
     uv.y() -= iv;
 
@@ -36,6 +33,7 @@ std::tuple<double, double, int, int> CubicBSpline::get_uv(Vec2 const& p) const
 Eigen::RowVector3d CubicBSpline::get(int v, int u) const
 {
     u %= m_nu;
+
     if (u < 0)
         u += m_nu;
 
@@ -73,7 +71,7 @@ void CubicBSpline::read(std::string const& file)
 
     stream >> m_nu >> m_nv;
 
-    m_points = std::vector<std::vector<Vec3>>(m_nv, std::vector<Vec3>(m_nu));
+    m_points = std::vector(m_nv, std::vector<Vec3>(m_nu));
 
     m_u_min = 0.;
     m_u_max = m_nu;
@@ -143,6 +141,7 @@ Eigen::MatrixXd CubicBSpline::jacobian(Vec2 const& p) const
 
     auto const get_index = [&](int v, int u) {
         u %= m_nu;
+
         if (u < 0)
             u += m_nu;
 

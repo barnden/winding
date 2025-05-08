@@ -10,13 +10,12 @@
 #    include "Surfaces/Surface.h"
 #    include "utils.h"
 
+#    include <memory>
 #    include <print>
 #    include <vector>
 
 #    define SF_OFF            0.001
 #    define ANGLE_SPEED_CONST 2.0
-
-static constexpr double Infinity = std::numeric_limits<double>::infinity();
 
 struct LocalFrame {
     Vec3 position;
@@ -30,6 +29,8 @@ struct LocalFrame {
 };
 
 struct IntersectionNode {
+    using ptr_t = std::shared_ptr<IntersectionNode>;
+
     Vec2 parametric = Vec2::Zero();
     Vec3 point = Vec3::Zero();
 
@@ -38,69 +39,53 @@ struct IntersectionNode {
     double t_up = 0.;
     double t_down = 0.;
 
-    IntersectionNode* prev_up = nullptr;
-    IntersectionNode* next_up = nullptr;
+    ptr_t prev_up = nullptr;
+    ptr_t next_up = nullptr;
 
-    IntersectionNode* prev_down = nullptr;
-    IntersectionNode* next_down = nullptr;
+    ptr_t prev_down = nullptr;
+    ptr_t next_down = nullptr;
 
     bool is_end = false;
 };
 
 class IntersectionList {
 public:
-    IntersectionNode *head, *rear;
+    using node_t = IntersectionNode;
+    using nodeptr_t = IntersectionNode::ptr_t;
+
+    nodeptr_t head;
+    nodeptr_t rear;
 
     IntersectionList();
 
-    void insert(IntersectionNode* node, IntersectionNode* IntersectionNode::* prev, IntersectionNode* IntersectionNode::* next, double IntersectionNode::* value) const;
-    void interpolate(double t, double& dist, double& angle, IntersectionNode* IntersectionNode::* next, double IntersectionNode::* value) const;
+    void insert(
+        nodeptr_t node,
+        nodeptr_t node_t::* prev,
+        nodeptr_t node_t::* next,
+        double node_t::* value) const;
+
+    void interpolate(
+        double t,
+        double& dist,
+        double& angle,
+        nodeptr_t node_t::* next,
+        double node_t::* value) const;
 };
 
 class IntersectionListUp : public IntersectionList {
 public:
-    IntersectionListUp()
-        : IntersectionList()
-    {
-        head->t_up = -Infinity;
-        rear->t_up = Infinity;
+    IntersectionListUp();
 
-        head->next_up = rear;
-        rear->prev_up = head;
-    }
-
-    void insert(IntersectionNode* node) const
-    {
-        IntersectionList::insert(node, &IntersectionNode::prev_up, &IntersectionNode::next_up, &IntersectionNode::t_up);
-    }
-
-    void interpolate(double t, double& dist, double& angle) const
-    {
-        IntersectionList::interpolate(t, dist, angle, &IntersectionNode::next_up, &IntersectionNode::t_up);
-    }
+    void insert(IntersectionNode::ptr_t node) const;
+    void interpolate(double t, double& dist, double& angle) const;
 };
 
 class IntersectionListDown : public IntersectionList {
 public:
-    IntersectionListDown()
-        : IntersectionList()
-    {
-        head->t_down = -Infinity;
-        rear->t_down = Infinity;
+    IntersectionListDown();
 
-        head->next_down = rear;
-        rear->prev_down = head;
-    }
-
-    void insert(IntersectionNode* node) const
-    {
-        IntersectionList::insert(node, &IntersectionNode::prev_down, &IntersectionNode::next_down, &IntersectionNode::t_down);
-    }
-
-    void interpolate(double t, double& dist, double& angle) const
-    {
-        IntersectionList::interpolate(t, dist, angle, &IntersectionNode::next_down, &IntersectionNode::t_down);
-    }
+    void insert(IntersectionNode::ptr_t node) const;
+    void interpolate(double t, double& dist, double& angle) const;
 };
 
 struct Quad {
@@ -128,6 +113,14 @@ struct Quad {
     }
 };
 
+struct OrderNode {
+    int path;
+    double u;
+
+    OrderNode* next;
+    OrderNode* prev;
+};
+
 class Composer {
     std::vector<std::vector<Vec2>> m_initial;
     std::vector<int> m_winding_order;
@@ -135,15 +128,6 @@ class Composer {
 
     int m_num_paths;
     int m_num_particles;
-    double m_l_turn;
-
-    struct OrderNode {
-        int path;
-        double u;
-
-        OrderNode* next;
-        OrderNode* prev;
-    };
 
 public:
     Composer(ParametricSurface const& surface, double num_revolutions, int num_paths, int num_particles);
@@ -156,10 +140,12 @@ public:
         Vec2& intersection,
         double& t_up, double& t_down) -> bool;
 
-    auto intersect(std::vector<Vec2> const& up, std::vector<Vec2> const& down) -> std::vector<IntersectionNode*>;
+    auto intersect(
+        std::vector<Vec2> const& up,
+        std::vector<Vec2> const& down) -> std::vector<IntersectionNode::ptr_t>;
 
-    auto score(IntersectionNode* p) -> double;
-    void score_ends(IntersectionNode* p);
+    auto score(IntersectionNode::ptr_t p) -> double;
+    void score_ends(IntersectionNode::ptr_t p);
 
     void interpolate(
         LocalFrame& frame,
@@ -168,17 +154,14 @@ public:
         int i,
         double t);
 
-    double max_area = -Infinity;
-
     std::vector<Quad> quads;
-    Quad max_quad;
 
     auto simulate(
         double timestep = 0.05,
         double spring_constant = 1'000'000.,
         double damping_coefficient = 200.,
         double epsilon = 0.001,
-        int step = 0);
+        int step = 0) -> std::vector<LocalFrame>;
 
     decltype(auto) initial_path() const { return m_initial; }
     decltype(auto) winding_order() const { return m_winding_order; }
