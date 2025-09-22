@@ -297,7 +297,7 @@ void create_quadmesh(
 
                 quads.push_back(quad);
 
-                std::println(ostream, "v {}\nv {}\nv {}\nv {}", quad.p0, quad.p1, quad.p2, quad.p3);
+                ostream << std::format("v {}\nv {}\nv {}\nv {}\n", quad.p0, quad.p1, quad.p2, quad.p3);
             }
             p = p->next_up;
         }
@@ -308,7 +308,7 @@ void create_quadmesh(
         auto p = ls.head;
         while (p != ls.rear) {
             if (p->next_up && p->next_up->next_down && p->next_up->next_down->prev_up && p->next_up->next_down->prev_up->prev_down == p) {
-                std::println(ostream, "f {} {} {} {}", cnt, cnt + 1, cnt + 2, cnt + 3);
+                ostream << std::format("f {} {} {} {}\n", cnt, cnt + 1, cnt + 2, cnt + 3);
                 cnt += 4;
             }
             p = p->next_up;

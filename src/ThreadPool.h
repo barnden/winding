@@ -4,6 +4,8 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <mutex>
+#include <condition_variable>
 
 template <typename Job>
 class ThreadPool {
