@@ -17,7 +17,7 @@ template <>
 struct std::formatter<Vec2> : std::formatter<std::string> {
     auto format(Vec2 p, std::format_context& ctx) const
     {
-        return std::formatter<string>::format(std::format("{}, {}", p.x(), p.y()), ctx);
+        return std::formatter<string>::format(std::format("{} {}", p.x(), p.y()), ctx);
     }
 };
 
@@ -25,7 +25,7 @@ template <>
 struct std::formatter<Vec3> : std::formatter<std::string> {
     auto format(Vec3 p, std::format_context& ctx) const
     {
-        return std::formatter<string>::format(std::format("{}, {}, {}", p.x(), p.y(), p.z()), ctx);
+        return std::formatter<string>::format(std::format("{} {} {}", p.x(), p.y(), p.z()), ctx);
     }
 };
 
